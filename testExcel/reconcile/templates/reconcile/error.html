@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error file</title>
+    <style>
+        #transaction {
+          font-family: Arial, Helvetica, sans-serif;
+          border-collapse: collapse;
+          width: 100%;
+        }
+        
+        #transaction td, #transaction th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        
+        #transaction tr:nth-child(even){background-color: #f2f2f2;}
+        
+        #transaction tr:hover {background-color: #ddd;}
+        
+        #transaction th {
+          padding-top: 12px;
+          padding-bottom: 12px;
+          text-align: left;
+          background-color: #4CAF50;
+          color: white;
+        }
+    </style>
+</head>
+<body>
+    <table id="transaction">
+        <tr> 
+            <th>Ligne </th>    
+            <th>DATE </th>
+            <th>HEURE</th>
+            <th>ID PAIEMENT</th>
+            <th>STATUT</th>
+            <th>MONTANT</th>
+            <th>TELEPHONE</th>
+        </tr>
+        <tbody>
+        {% for data in file %}
+             {% if forloop.counter0  in etat %}
+            <tr style="color: red;">
+                <th>{{forloop.counter0}} </th>
+                <td>{{ data.date }}</td> 
+                <td>{{ data.heure }}</td> 
+                <td>{{ data.idpaiment }}</td> 
+                <td>{{ data.status }}</td> 
+                <td>{{ data.montant }}</td> 
+                <td>{{ data.telephone }}</td> 
+            </tr>
+     
+             {% endif %}
+
+        {% endfor %}
+         </tbody>      
+    </table>  
+   
+     
+</body>
+</html>

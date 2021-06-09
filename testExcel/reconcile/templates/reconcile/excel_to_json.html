@@ -1,0 +1,109 @@
+{% load static %}
+    <!DOCTYPE html>
+    <html lang="en">
+    
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk"
+            crossorigin="anonymous">
+        <title>Convert excel to JSON Object</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.2/xlsx.full.min.js"></script>
+        <script type="text/javascript" src="{% static 'jquery.js' %}" ></script>
+    </head>
+    
+    <body>  
+        <form action="{% url 'api_test:reconciliation' %}" method="POST" >
+            {% csrf_token %}
+        <div class="conatiner mt-5">
+            <div class="row">
+                <div class="col-md-3"></div>
+                <div class="col-md-3">
+                    <input class="form-control" type="file" id="input" accept=".xls,.xlsx" name="excel" >
+                </div>
+                <div class="col-md-2">
+                    <input type="button"class="btn btn-primary" id="button" value="Convert">
+                </div>
+                <div>
+                    <input type="datetime-local" placeholder="debut" id ="debut" name="debut">
+                    <input type="datetime-local" placeholder="fin" id ="fin" name="fin">
+                </div>
+                <div>
+                    <!--Blue select-->
+                    <select name="operateur"  class="mdb-select md-form colorful-select dropdown-primary" style="margin-left: 950px;">
+                        <option value="OMCI" >ORANGE CI</option>
+                        <option value="DDVAOMCI" >DDVA ORANGE CI</option>
+                        <option value="ONECIOMCI" >ONECI ORANGE CI</option>
+                        <option value="MTNCI" >MTN CI</option>
+                        <option value="DDVAMTNCI">DDVA MTN CI</option>
+                        <option value="ONECIMTNCI" >ONECI MTN CI</option>
+                        <option value="MOOVCI" >MOOV CI</option>
+                        <option value="DDVAMOOV" >DDVA MOOV CI</option>
+                        <option value="ONECIMOOV" >ONECI MOOV CI</option>
+                        <option value="DDVAVISA" >DDVA VISA</option>
+                        <option value="OMSN">ORANGE SENEGAL</option>
+                        <option value="FREESN" >Free SENEGAL</option>
+                        <option value="MTNCM" >MTN CM</option>
+                        <option value="OMCM" >ORANGE CM</option>
+                        <option value="OMBK" >ORANGE BK</option>
+                        <option value="MOOVBK" >MOOV BK</option>
+                        <option value="MOOVTG" >MOOV TG</option>
+                        <option value="OMRDC" >ORANGE RDC</option>
+                    </select>
+                    <label class="mdb-main-label"><strong>Operateur</strong> </label>
+                    <!--/Blue select-->
+                </div>
+    <div class="col-md-12">
+        <pre id="jsondata"></pre>
+        <input type="hidden" id="valeur" name="valeur">
+    </div>
+            </div>
+        </div>
+        <button type="submit">Envoyer</button>
+    </form>
+    </body>
+    <script>
+        let selectedFile;
+    console.log(window.XLSX);
+    document.getElementById('input').addEventListener("change", (event) => {
+        selectedFile = event.target.files[0];
+    })
+    
+    let data=[{
+        "name":"jayanth",
+        "data":"scd",
+        "abc":"sdef"
+    }]
+    
+    
+    document.getElementById('button').addEventListener("click", () => {
+        XLSX.utils.json_to_sheet(data, 'out.xlsx');
+        if(selectedFile){
+            let fileReader = new FileReader();
+            fileReader.readAsBinaryString(selectedFile);
+            fileReader.onload = (event)=>{
+             let data = event.target.result;
+             let workbook = XLSX.read(data,{type:"binary"});
+             console.log(workbook);
+    
+            var tab = [];
+            workbook.SheetNames.forEach(sheet => {
+                  let rowObject = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheet]);
+                  console.log(rowObject);
+                  console.log(rowObject[0].name);
+                  document.getElementById("jsondata").innerHTML = JSON.stringify(rowObject,undefined,4)
+                  tab = rowObject;
+                  
+             });
+            $("#valeur").val(JSON.stringify(tab,undefined,4));
+            }
+        
+        }
+    });
+    
+    
+    </script>
+    
+    </html>
+    

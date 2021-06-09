@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiSPLAY DATA</title>
+
+    <style>
+        #transaction {
+          font-family: Arial, Helvetica, sans-serif;
+          border-collapse: collapse;
+          width: 100%;
+        }
+        
+        #transaction td, #transaction th {
+          border: 1px solid #ddd;
+          padding: 8px;
+        }
+        
+        #transaction tr:nth-child(even){background-color: #f2f2f2;}
+        
+        #transaction tr:hover {background-color: #ddd;}
+        
+        #transaction th {
+          padding-top: 12px;
+          padding-bottom: 12px;
+          text-align: left;
+          background-color: #4CAF50;
+          color: white;
+        }
+    </style>
+</head>
+<body>
+    <p>Nombre total des transactions (operateur) : <strong>{{ countOperator }}</strong> </p>
+    <p>Nombre total des transactions (Cinetpay) : <strong>{{ countCinetpay }}</strong> </p>
+    <p>Nombre total de transactions à réconcilier : <strong>{{ diffCount }}</strong> </p>
+    <p>Montant total des transactions (operateur) : <strong>{{ total.montant__sum }}  FCFA</strong> </p>
+    <p>Montant total des transactions (Cinetpay) : <strong>{{montantCinetpay.Montant__sum}} FCFA</strong> </p>
+    <p>Difference Montant : <strong>{{diffMontant}}</strong> </p>
+    
+    <table id="transaction">
+ 
+        <h1 style="margin-left: 90px;">LES CORRESPONDANTS DES TRANSACTIONS ECHEC CHEZ CINETPAY</h1>
+       <tr>
+           <th>DATE PAIMENT</th>
+           <th>ID PAIMENT</th>
+           <th>TELEPHONE</th>
+           <th>MONTANT</th>
+           <th>STATUT</th>
+           <th>DATE CREATION CINETPAY</th>
+           <th>ID TRANSACTION CINETPAY</th>
+           <th>TELEPHONE CINETPAY</th>
+           <th>MONTANT CINETPAY</th>
+           <th>STATUT CINETPAY</th>
+       </tr>
+       <tbody>
+            {% for data in correspondent %}
+            <tr>
+                 <td>{{ data.datePaiement}}</td> 
+                 <td>{{ data.idpaiment }}</td> 
+                 <td>{{ data.telephone }}</td> 
+                 <td>{{ data.montant }}</td> 
+                 <td>{{ data.status }}</td> 
+                 <td>{{ data.creationCorrespondent }}</td> 
+                 <td>{{ data.IdTransactionCorrespondent }}</td> 
+                 <td>{{ data.TelephoneCorrespondant }}</td> 
+                 <td>{{ data.AmountCorrespodent }}</td> 
+                 <td>{{ data.StautTransactionCorrespondent }}</td> 
+            </tr>
+            {% endfor %}
+       </tbody>
+       
+    </table>
+
+    <table id="transaction">
+ 
+        <h1 style="margin-left: 90px;">LES TRANSACTIONS DE L'OPERATEUR SANS CORRESPONDANTS</h1>
+       <tr>
+           <th>DATE PAIMENT</th>
+           <th>ID PAIMENT</th>
+           <th>TELEPHONE</th>
+           <th>MONTANT</th>
+           <th>STATUT</th>
+       </tr>
+       <tbody>
+            {% for data in difference %}
+            <tr>
+                 <td>{{ data.datepaiment }}</td> 
+                 <td>{{ data.idpaiment }}</td> 
+                 <td>{{ data.telephone }}</td> 
+                 <td>{{ data.montant }}</td> 
+                 <td>{{ data.status }}</td> 
+            </tr>
+            {% endfor %}
+       </tbody>      
+    </table>  
+    
+    <form action="{% url 'reconcile:update_transaction' %}" method="POST">
+        {% csrf_token %}
+        <div>
+            <button type="submit" style="margin-left: 1000px;">Mettre à jour</button>
+        </div>
+    </form>
+</body>
+</html>
