@@ -23,9 +23,11 @@ from .core import *
 from api_test import core
 from . import core
 from .config import *
+from .constantes import *
 from copy import deepcopy
-
+from multiprocessing import Process
 from api_test import models
+
 # Create your views here.
 
 
@@ -240,14 +242,11 @@ class Reconcile(APIView):
                         join_date_and_time(data, index_["index_date"], index_["index_time"] )
                     except Exception as e :
                         pass
-                    print(compte)
-                    print(operator)
                     
 
                     found = False
                     item = CONFIG_OPERATOR[operator]
-                    if item["account"] == compte : 
-                        print('jgfkhfhhgggggggg')     
+                    if item["account"] == compte :    
                         tache = Tache.objects.create(
                             libelle='tache #{}'.format(date), 
                             description='', 
@@ -257,7 +256,12 @@ class Reconcile(APIView):
                             operateur=operateur
                             )
                         save_file(data, agent.username, index_, tache)
-                        execute_reoncile()
+                        print('je veux rentre')
+
+                        execute_reconcile(item,tache.id)   
+                        # p = Process(target=execute_reconcile, args=(item,tache,))
+                        # p.start()
+                        print('je suis passe')
 
                         found = True
                         # a = {}
@@ -300,37 +304,50 @@ class Reconcile(APIView):
                     # # notification(request.user)
                     # notification(request.user)
                     # print("Time for reconciling : %ssecs" % (end_time-start_time) )
-                    return Response({"resultat" : "La demande de traitement a été enregistrée avec succès. Nous vous notifierons le résultat à la fin du traitement."}, status=status.HTTP_200_OK)
+                    return Response({"resultat" : "La demande de traitement a été enregistrée avec succès. Nous vous notifierons le résultat à la fin du traitement.",'Numero de tache ':tache.dateCreation}, status=status.HTTP_200_OK)
                 elif len(state) == len(trx) :
                     return Response({'file':'the headers do not match'}, status=status.HTTP_406_NOT_ACCEPTABLE)
                 else :
                     return Response({'file':'empty','problem to line ':state}, status=status.HTTP_406_NOT_ACCEPTABLE)
-        if operator == 'ddva_visa' : #ddva_visa  
-            state = verify_ddva_visa(request.data['data'])
+        if operator == 'DDVAVISA' : #ddva_visa  
+            operateur = Operateur.objects.get(code=operator) 
+            date = datetime.now()
+            tache = Tache.objects.create(
+                libelle='tache #{}'.format(date), 
+                description='', 
+                dateDebut=debut_obj, 
+                dateFin=fin_obj,
+                owner=request.user, 
+                operateur=operateur
+                )
+            state = verify_ddva_visa(trx)
             if len(state) == 0 : 
                 start_time  =time.time()
                 #treat and insert trx from operator
-                file_treatment_ddva_visa(request.data['data'],debut,agent)
-                compte = request.data['data'][0]['ID du marchand']
+                file_treatment_ddva_visa(trx,debut,agent.username,tache)
+                compte = trx[0]['ID du marchand']
                 all_failed_trx =  TrxCinetpay.objects.filter(payment_method="DDVAVISAM").exclude(cpm_trans_status__contains="SUCCES")
                 all_sucess_trx = TrxCinetpay.objects.filter(cpm_trans_status="SUCCES",payment_method="DDVAVISAM")
-                failed_trx = Cinetpay_transaction_failed(debut_obj,fin_obj,all_failed_trx)  # recover failed transactions from Cinetay
-                success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay 
+                # failed_trx = Cinetpay_transaction_failed(debut_obj,fin_obj,all_failed_trx)  # recover failed transactions from Cinetay
+                # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay 
+                failed_trx = all_failed_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover failed transactions from Cinetay
+                success_trx = all_sucess_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj) # recover successfuly transactions from Cinetay 
                 # insert failed transactions from Cinetay in DB----------
                 for x in failed_trx :
-                    insert_failed_trx(x,compte,agent)
+                    insert_failed_trx(x,compte,agent.username,tache)
                 #---------------------------------------------------------
                 # insert successfuly transactions from Cinetay in DB------
                 for x in success_trx :
-                    insert_success_trx(x,compte,agent)
+                    insert_success_trx(x,compte,agent.username,tache)
                 #---------------------------------------------------------
-                difference = match_table_ddva_visa() #match DDVA VISA trx and CinetpaySucessfuly trx and return difference    
+                difference = match_table_ddva_visa(compte,agent.username) #match DDVA VISA trx and CinetpaySucessfuly trx and return difference    
                 if len(difference) == 0 :
-                    countOperator= TrxDdvaVisa.objects.filter(account= compte,agent =agent ).count()
-                    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent).count()
+                    Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0])
+                    countOperator= TrxDdvaVisa.objects.filter(account= compte,agent =agent,tache=tache ).count()
+                    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache=tache).count()
                     diffCount = countOperator - countCinetpay
-                    operatorA = TrxDdvaVisa.objects.filter(agent =agent ,account = compte)
-                    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent)
+                    operatorA = TrxDdvaVisa.objects.filter(agent =agent ,account = compte,tache=tache)
+                    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache=tache)
                     operatorAmount = 0
                     for t in operatorA :
                         if t.amount != '-' :
@@ -344,12 +361,12 @@ class Reconcile(APIView):
                             CinetpayAmount += int(t.cpm_amount)
                     print(CinetpayAmount)
                     diffAmount = operatorAmount - CinetpayAmount
-                    TrxDdvaVisa.objects.filter(account= compte,agent=agent ).delete()
-                    TrxSuccessCinetpay.objects.filter(account= compte,agent=agent).delete()
-                    TrxFailedCinetpay.objects.filter(account= compte,agent=agent).delete()
-                    TrxDifferenceDdvaVisa.objects.filter(account= compte,agent=agent).delete()
-                    TrxCorrespondent.objects.filter(account= compte,agent=agent).delete()
-                    TrxRightCorrespodentDdvaVisa.objects.filter(account= compte,agent=agent).delete()
+                    TrxDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache ).delete()
+                    TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+                    TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+                    TrxDifferenceDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
+                    TrxCorrespondent.objects.filter(account= compte,agent=agent,tache=tache).delete()
+                    TrxRightCorrespodentDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
                     print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())
                     information = {
                         'difference': 0,
@@ -363,15 +380,16 @@ class Reconcile(APIView):
                     return Response(information , status=status.HTTP_200_OK)
                 #insert trx in difference table 
                 for x in difference :
-                    insert_difference_ddva_visa(x,compte,agent)
+                    insert_difference_ddva_visa(x,compte,agent.username,tache)
                 # Detect each correspondent of trx in difference
-                detect_correspondent_ddva_visa(compte,agent)
+                detect_correspondent_ddva_visa(compte,agent.username,tache)
                 end_time = time.time()
                 print("Time for reconciling : %ssecs" % (end_time-start_time) )
                 # operatorAmount = TrxOperateur.objects.aggregate(Sum('amount'))
                 # CinetpayAmount = TrxSuccessCinetpay.objects.aggregate(Sum('amount'))
                 # print(CinetpayAmount,operatorAmount)
                 # diffAmount = operatorAmount['montant__avg'] - CinetpayAmount['Montant__avg']
+                Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0])
                 diff = TrxDifferenceDdvaVisa.objects.filter(agent=agent,account = compte)
                 diffSerialiser = TrxDifferenceDdvaVisaSerializer(diff, many=True)
                 countOperator= TrxDdvaVisa.objects.filter(agent =agent ,account = compte).count()
@@ -408,12 +426,11 @@ class Reconcile(APIView):
                     'diffCount':diffCount 
                 }
                 return Response(information, status=status.HTTP_200_OK)
-            elif len(state) == len(request.data['data']['data']) :
+            elif len(state) == len(trx) :
                 return Response({'file':'the headers do not match'}, status=status.HTTP_406_NOT_ACCEPTABLE)
             else :
                 return Response({'file':'empty','problem to line ':state}, status=status.HTTP_406_NOT_ACCEPTABLE)
         else :
-            print("test")
             return Response({'operator':'doesn\'t exist'}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -463,8 +480,11 @@ class Catered(APIView):
         agent = tache.owner
 
         a = {}
+        Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[1][0])
         start_treatment(item,a)
+
         all_failed_trx =  TrxCinetpay.objects.filter(**a)
+
         all_failed_trx = all_failed_trx.exclude(cpm_trans_status__contains="SUCCES")
         a["cpm_trans_status"] = "SUCCES"
         all_sucess_trx = TrxCinetpay.objects.filter(**a)
@@ -486,6 +506,7 @@ class Catered(APIView):
                     pass
                 all_failed_trx = all_failed_trx.exclude(**a)
                 all_sucess_trx = all_sucess_trx.exclude(**a)
+
         # failed_trx = Cinetpay_transaction_failed(debut_obj,fin_obj,all_failed_trx)  # recover failed transactions from Cinetay
         failed_trx = all_failed_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover failed transactions from Cinetay
         # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay
@@ -493,11 +514,15 @@ class Catered(APIView):
         second_treatment(failed_trx,success_trx,compte,agent.username,tache)
         difference = match_table(compte,agent.username) #match operator trx and CinetpaySucessfuly trx and return difference
         if len(difference) == 0 :
+            Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0])
             information  = third_treatment(agent.username,compte,tache) 
             return Response(information , status=status.HTTP_200_OK)
+        Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0]) 
         information = forth_treament(difference,compte,agent.username,tache)
         end_time = time.time()
-        # notification(request.user)
+        print("Started at", datetime.now())
+
+        notification(request.user)
         # notification(request.user)
         print("Time for reconciling : %ssecs" % (end_time-start_time) )
         return Response(information, status=status.HTTP_200_OK)
@@ -525,27 +550,28 @@ class Cinetpay(APIView) :
         serializer = TrxRightCorrespodentSerializer(qs, many=True)
         return Response(serializer.data)
     #orangeCi
-    def post(self, request, *args, **kwargs):
-        start_time  =time.time()
-        for x in request.data:
-            serializer = TrxCinetpaySerializer(data=x)
-            if serializer.is_valid():
-                serializer.save()
-            else :
-                return Response(serializer.errors)
-        end_time = time.time()
-        print("Time for reconciling : %ssecs" % (end_time-start_time) )
-        return Response({'sucess':'ok'})
-    #ddva orangeCi
     # def post(self, request, *args, **kwargs):
-    #     for x in request.data['data'] :
-    #         # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
-    #         x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
-    #         x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
+    #     start_time  =time.time()
+    #     for x in request.data:
     #         serializer = TrxCinetpaySerializer(data=x)
     #         if serializer.is_valid():
     #             serializer.save()
     #         else :
     #             return Response(serializer.errors)
+    #     end_time = time.time()
+    #     print("Time for reconciling : %ssecs" % (end_time-start_time) )
     #     return Response({'sucess':'ok'})
+    # ddva orangeCi
+    def post(self, request, *args, **kwargs):
+        send_whatsApp()
+        # for x in request.data:
+        #     # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
+        #     x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
+        #     x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
+        #     serializer = TrxCinetpaySerializer(data=x)
+        #     if serializer.is_valid():
+        #         serializer.save()
+        #     else :
+        #         return Response(serializer.errors)
+        return Response({'sucess':'ok'})
         

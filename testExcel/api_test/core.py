@@ -12,6 +12,12 @@ import json
 from testExcel.settings import EMAIL_HOST_USER
 from django.core.mail import EmailMessage
 from .config import *
+from asgiref.sync import sync_to_async
+from background_task import background
+# from celery.decorators import task
+
+
+
 def verify_oneci_moov(file) : 
     empty_trx =[]
     field = [ "RefID","DATE","TYPE","S/D","CR","STATUS" ]
@@ -139,7 +145,7 @@ def insert_failed_trx(x,compte,agent,tache):
     cpm_site_id=x.cpm_site_id,cpm_amount=x.cpm_amount,payment_method=x.payment_method,
     cel_phone_num=x.cel_phone_num,cpm_trans_status=x.cpm_trans_status,cpm_payid=x.cpm_payid,account=compte,agent=agent,tache=tache)
     b.save()
-    print('sauvé')
+    print('sauvé--failed--cinetpay--')
 #-----------------------------------------------------------------------------------------------------------------------------
 
 
@@ -150,7 +156,7 @@ def insert_success_trx(x,compte,agent,tache):
     cpm_site_id=x.cpm_site_id,cpm_amount=x.cpm_amount,payment_method=x.payment_method,
     cel_phone_num=x.cel_phone_num,cpm_trans_status=x.cpm_trans_status,cpm_payid=x.cpm_payid,account =compte,agent=agent,tache=tache)
     b.save()
-    print('sauvé')
+    print('sauvé---succes--cinetpay--')
 #-----------------------------------------------------------------------------------------------------------------------------
 
 # Insertion of trx correspondent---------------------------------------------------------------------------------------------------------------
@@ -160,7 +166,7 @@ def insert_correspondent(x,compte,agent,tache):
     cpm_site_id=x.cpm_site_id,cpm_amount=x.cpm_amount,payment_method=x.payment_method,
     cel_phone_num=x.cel_phone_num,cpm_trans_status=x.cpm_trans_status,cpm_payid=x.cpm_payid,account=compte,agent=agent,tache=tache)
     b.save()
-    print('sauvé')
+    print('sauvé--correspondant--trx--')
 #--------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -170,7 +176,7 @@ def insert_finalCorrespondant_ddva_visa(x,t,compte,agent,tache):
     created_atCorrespondent =t.created_at,AmountCorrespodent=t.cpm_amount,payment_methodCorrespondant=t.payment_method,
     cel_phone_numCorrespondant=t.cel_phone_num,StautTransactionCorrespondent=t.cpm_trans_status,cpm_trans_idCorrespondent = t.cpm_trans_id,cpm_customCorrespondent=t.cpm_custom,account =compte,agent=agent,tache=tache)
     b.save()
-    print('sauvé')
+    print('sauvé--final--correspondant--')
 #---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -238,14 +244,14 @@ def detect_correspondent(compte,agent,tache):
    
 
 #Detect each correspondant of Cinetpay failed transaction for DDVA VISA precisely--------------------------------------------------------------------------------------
-def detect_correspondent_ddva_visa(compte,agent):
+def detect_correspondent_ddva_visa(compte,agent,tache):
     difference = TrxDifferenceDdvaVisa.objects.all()
     for trx in difference : # select each element from difference
         corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cpm_custom=trx.trans_id) # select  his correspondent
         if len(corresp) != 0 : 
             for t in corresp : #insert those transactions in rightCorespondent table 
                 print(trx.trans_id,trx.payment_date,trx.amount,"-->",t.cpm_custom,t.created_at,t.cpm_amount,t.cpm_trans_id,"direct")
-                insert_finalCorrespondant_ddva_visa(trx,t,compte,agent)
+                insert_finalCorrespondant_ddva_visa(trx,t,compte,agent,tache)
             TrxgetRightCorrenpondent = TrxRightCorrespodentDdvaVisa.objects.all() # Select transactions having already their correspondents
             #And  Delete them from difference and TrxFailed table 
             for s in TrxgetRightCorrenpondent : 
@@ -309,13 +315,13 @@ def file_treatment_oneci_moov(file,agent):
         serializer = TrxOperateurSerializer(data=x)
         insert_oneci_moov_trx(x,agent)
 
-def file_treatment_ddva_visa(file,debut,agent) :
+def file_treatment_ddva_visa(file,debut,agent,tache) :
     for x in file :
         b = x['Date et heure'].split(' ')[0]
         x['Date et heure']=x['Date et heure'].replace(b,debut.split('T')[0]).split(' +')[0]
         print(x['Date et heure'])
         serializer = TrxOperateurSerializer(data=x)
-        insert_ddva_visa_trx(x,agent)
+        insert_ddva_visa_trx(x,agent,tache)
 
 
 #transaction from operator and not from Cinetpay------------------------------------------------------------------------------
@@ -325,8 +331,8 @@ def match_table(compte,agent):
 #-----------------------------------------------------------------------------------------------------------------------
 
 #transaction from DDVA VISA and not from Cinetpay------------------------------------------------------------------------------
-def match_table_ddva_visa():
-    difference = TrxDdvaVisa.objects.exclude(payid__in=TrxSuccessCinetpay.objects.values_list('cpm_payid', flat=True))
+def match_table_ddva_visa(compte,agent):
+    difference = TrxDdvaVisa.objects.filter(account=compte,agent=agent).exclude(payid__in=TrxSuccessCinetpay.objects.values_list('cpm_payid', flat=True))
     return difference
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -384,8 +390,8 @@ def insert_oneci_moov_trx(x,agent):
 
 
 # DDVA VISA insertion precisely------------------------------------------------------------------------------------------
-def insert_ddva_visa_trx(x,agent):
-    b =TrxDdvaVisa(payment_date=x['Date et heure'] , payid=x['ID de requête'],status=x['Décision'],trans_id=x['UUID de la transaction'],amount=x['Montant'],account=x['ID du marchand'],agent = agent)
+def insert_ddva_visa_trx(x,agent,tache):
+    b =TrxDdvaVisa(payment_date=x['Date et heure'] , payid=x['ID de requête'],status=x['Décision'],trans_id=x['UUID de la transaction'],amount=x['Montant'],account=x['ID du marchand'],agent = agent,tache=tache)
     b.save()
     print('sauvé---------------------')
 #------------------------------------------------------------------------------------------------------------------------------
@@ -462,7 +468,7 @@ def insert_operator(x, agent, index_, tache):
         b =TrxOperateur(payment_date=x[index_["index_datetime"]] , payid=x[index_["index_reference"]],status=x[index_["index_status"]],phone_num=x[index_["index_msisdn"]],amount=x[index_["index_amount"]],account=x[index_["index_account"]],agent = agent, tache=tache)
 
     b.save()
-    print('sauvé---------------------')
+    print('sauvé--------operateur-------------')
 
 
 
@@ -576,20 +582,21 @@ def forth_treament(difference,compte,agent,tache):
     return information
 
 
-def send_email(user):
-    email = EmailMessage('Le lien des transactions reconciliées', 'http://127.0.0.1:8000/reconciliation/','kouakounoeamani1@gmail.com',  to=['waltertacka@gmail.com'])
+
+def send_email(user,tache):
+    email = EmailMessage('Le lien des transactions reconciliées', 'http://127.0.0.1:8000/reconciliation/ il s\'agit de la tache','kouakounoeamani1@gmail.com',  to=['kouakounoeamani1@gmail.com'])
     email.send()
     print('ok')
     
 
 
-def send_sms():
+def send_sms(tache):
     r = requests.post('http://admin.smspro24.com/api/api_http.php', 
             data={
                 'username' :'', 
                 'password':'',
                 'sender' : 22586446316,
-                'text' : 'Recocnciliation termninée',
+                'text' : 'Recocnciliation termninée ',
                 'type' : 'text',
                  'to' : "0142662716"
             },
@@ -597,26 +604,48 @@ def send_sms():
     return Response(r.json)
 
 
+def send_whatsApp() :
+    requests.post('https://h1kjiyvucg.execute-api.eu-west-2.amazonaws.com/prod/common-core-whatsapp/send-message', 
+        data={
+            "numero" :'42662716', 
+            "type":'customized',
+            'message' : 'reconciliation',
+        },
+    )
 
-def notification(user):
+
+
+
+def notification(user,tache):
     try :
-        send_email(user)
+        send_email(user,tache)
     except Exception as e:
         raise(e)
     try:    
         send_sms(user)
     except Exception :
         pass
+    try :
+        send_whatsApp()
+    except Exception :
+        pass
 
-def execute_reoncile(item,tache):
+
+@background(queue='my-queue')
+def execute_reconcile(item,tache):
+    tache =Tache.objects.get(pk=tache)
+    print('je suis rentre')
     headers = {
-        'Authorization': 'Bearer JWNYIJmx6mqdkXbsWDhfpW6tulWYro',
+        'Authorization': 'Bearer 6UlBoyKdt8rjF2oFbGhMi84ffQFYvu',
         'Content-Type': 'application/json'
-    }
-    r=requests.post('http://localhost:8000/api_test/catered/',
+    }   
+    requests.post('http://localhost:8000/api_test/catered/',
         json = {
             'item':item,
             'id_tache':tache.pk,
         }, headers=headers
     )
-    return Response(r.text)
+    # return Response(r.json)
+
+
+# get_blog = sync_to_async(execute_reconcile, thread_sensitive=True)
