@@ -16,6 +16,12 @@ class Post(models.Model):
     def  __str__(self):
         return self.title
 
+class Profile(models.Model) :
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    telephone = models.CharField(max_length=100)
+    numero_whatsapp = models.CharField(max_length=100)
+    fonction = models.CharField(max_length=100)
+    matricule = models.CharField(max_length=100)
 
 
 class Operateur(models.Model):

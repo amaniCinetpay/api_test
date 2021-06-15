@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import OperateurSerializer, PostSerializer, TacheSerializer, TrxCinetpaySerializer,TrxDifferenceSerializer,TrxRightCorrespodentSerializer,TrxOperateurSerializer,TrxreconciledSerializer,TrxRightCorrespodentDdvaVisaSerializer,TrxDifferenceDdvaVisaSerializer
-from .models import Operateur, Post, Tache,TrxDifference,TrxOperateur,TrxRightCorrespodent,TrxFailedCinetpay,TrxCinetpay,TrxSuccessCinetpay,TrxCorrespondent, Trxreconciled,TrxNonereconciled,TrxDifferenceDdvaVisa,TrxNonereconciledDdvaVisa,TrxreconciledDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxDdvaVisa
+from .serializers import OperateurSerializer,ProfileSerializer, PostSerializer, TacheSerializer, TrxCinetpaySerializer,TrxDifferenceSerializer,TrxRightCorrespodentSerializer,TrxOperateurSerializer,TrxreconciledSerializer,TrxRightCorrespodentDdvaVisaSerializer,TrxDifferenceDdvaVisaSerializer
+from .models import Operateur,Profile, Post, Tache,TrxDifference,TrxOperateur,TrxRightCorrespodent,TrxFailedCinetpay,TrxCinetpay,TrxSuccessCinetpay,TrxCorrespondent, Trxreconciled,TrxNonereconciled,TrxDifferenceDdvaVisa,TrxNonereconciledDdvaVisa,TrxreconciledDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxDdvaVisa
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, date
 import time
@@ -27,6 +27,7 @@ from .constantes import *
 from copy import deepcopy
 from multiprocessing import Process
 from api_test import models
+from oauth2_provider.models import AccessToken
 
 # Create your views here.
 
@@ -39,6 +40,44 @@ class OperateurView(generics.ListCreateAPIView):
 class OperateurRUD(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OperateurSerializer
     queryset = Operateur.objects.all()
+
+
+
+class ProfileView(generics.ListCreateAPIView):
+    serializer_class = ProfileSerializer
+    queryset = Profile.objects.all()
+
+
+class TokenView(APIView):
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    
+    def post(self, request, *args, **kwargs):
+        access_token = AccessToken.objects.get(token=request.data['token'])
+        user = access_token.user
+        nom = user.last_name
+        prenom = user.first_name
+        username = user.username
+        email = user.email
+        qs = Profile.objects.filter(user=user)
+        serializer = ProfileSerializer(qs, many=True)
+
+        details = {
+            'nom':nom,
+            'prenom':prenom,
+            'email':email,
+            'usename':username
+        }
+    
+        return Response({'profile':serializer.data,'details':details})
+
+    
+
+
+class ProfileRUD(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ProfileSerializer
+    queryset = Profile.objects.all()
+
+
 
 
 
@@ -246,7 +285,7 @@ class Reconcile(APIView):
 
                     found = False
                     item = CONFIG_OPERATOR[operator]
-                    if item["account"] == compte :    
+                    if str(item["account"]) == compte :    
                         tache = Tache.objects.create(
                             libelle='tache #{}'.format(date), 
                             description='', 
@@ -377,6 +416,8 @@ class Reconcile(APIView):
                         'countCinetpay':countCinetpay,
                         'diffCount':diffCount 
                     }
+                    notification(request.user,tache.id)
+                    print(tache.id)
                     return Response(information , status=status.HTTP_200_OK)
                 #insert trx in difference table 
                 for x in difference :
@@ -425,6 +466,8 @@ class Reconcile(APIView):
                     'countCinetpay':countCinetpay,
                     'diffCount':diffCount 
                 }
+    
+                notification(request.user,tache)
                 return Response(information, status=status.HTTP_200_OK)
             elif len(state) == len(trx) :
                 return Response({'file':'the headers do not match'}, status=status.HTTP_406_NOT_ACCEPTABLE)
@@ -436,8 +479,8 @@ class Reconcile(APIView):
 
 
 
-    def put(self, request, *args, **kwargs) :
-        agent = request.data['agent']
+    def put(self, request,pk, *args, **kwargs) :
+        agent = request.user
         compte = request.data['compte']
         rightCorresp = TrxRightCorrespodent.objects.filter(agent = agent,account=compte)
         NoneCorresp = TrxDifference.objects.filter(agent= agent,account = compte)
@@ -464,11 +507,70 @@ class Reconcile(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
             
 
+
+
+class ReconcileDetail(APIView) :
+    def put(self, request, pk, format=None):
+        tache = Tache.objects.get(pk=pk)
+        rightCorresp = TrxRightCorrespodent.objects.filter(tache = tache)
+        NoneCorresp = TrxDifference.objects.filter(tache = tache)
+        # insert none reconciled transaction
+        for x in NoneCorresp :
+            insert_none_reconciled_trx(x,tache)
+        # Update  transaction from cinetpay database
+
+        for x in rightCorresp :    
+            t = TrxCinetpay.objects.filter(cel_phone_num=x.cel_phone_numCorrespondant,cpm_amount=x.AmountCorrespodent,cpm_trans_id=x.cpm_trans_idCorrespondent).update(cpm_payment_date=x.payment_date,cpm_trans_status="SUCCES",cpm_payid=x.payid)
+     
+                
+        # insert  reconciled transaction
+        final = TrxRightCorrespodent.objects.filter(tache=tache)
+        for x in final :
+            insert_reconciled_trx(x,tache)
+        Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[3][0])
+        
+    
+        countOperator= TrxOperateur.objects.filter(tache= tache).count()
+        operatorA = TrxOperateur.objects.filter(tache= tache)
+
+
+        CinetpayAmount = 0
+        countCinetpay = 0
+        operatorAmount = 0
+
+        for t in operatorA :
+            dt = TrxCinetpay.objects.filter(cpm_payid=t.payid)
+            for s in dt :
+                if s.cpm_amount != '-' :
+                    CinetpayAmount += int(s.cpm_amount)
+            countCinetpay += 1
+            if t.amount != '-' :
+                operatorAmount += int(t.amount.split('.')[0])
+        diffCount = countOperator - countCinetpay
+        print(operatorAmount,'equal',countOperator)   
+
+        print(CinetpayAmount,'equal',countCinetpay)
+        diffAmount = operatorAmount - CinetpayAmount
+        information = {
+                'montantOperateur':operatorAmount,
+                'montantCinetpay':CinetpayAmount,
+                'diffMontant':diffAmount,
+                'countOperator':countOperator,
+                'countCinetpay':countCinetpay,
+                'diffCount':diffCount 
+            }
+            
+        return Response(information, status=status.HTTP_201_CREATED)
+
+
+
+
 class Catered(APIView):
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
     @csrf_exempt
     def post(self,request,*args,**kwargs):
+        print('je traite à présent')
         start_time = time.time()
         # return Response(json.dumps(request.data))
         item =request.data['item']
@@ -511,18 +613,17 @@ class Catered(APIView):
         failed_trx = all_failed_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover failed transactions from Cinetay
         # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay
         success_trx = all_sucess_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover successfuly transactions from Cinetay
-        second_treatment(failed_trx,success_trx,compte,agent.username,tache)
+        second_treatment(failed_trx,success_trx,compte,agent,tache)
         difference = match_table(compte,agent.username) #match operator trx and CinetpaySucessfuly trx and return difference
         if len(difference) == 0 :
             Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0])
-            information  = third_treatment(agent.username,compte,tache) 
+            information  = third_treatment(agent,compte,tache) 
             return Response(information , status=status.HTTP_200_OK)
         Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0]) 
-        information = forth_treament(difference,compte,agent.username,tache)
+        information = forth_treament(difference,compte,agent,tache)
         end_time = time.time()
         print("Started at", datetime.now())
-
-        notification(request.user)
+        notification(agent,tache)
         # notification(request.user)
         print("Time for reconciling : %ssecs" % (end_time-start_time) )
         return Response(information, status=status.HTTP_200_OK)
@@ -550,28 +651,28 @@ class Cinetpay(APIView) :
         serializer = TrxRightCorrespodentSerializer(qs, many=True)
         return Response(serializer.data)
     #orangeCi
-    # def post(self, request, *args, **kwargs):
-    #     start_time  =time.time()
-    #     for x in request.data:
-    #         serializer = TrxCinetpaySerializer(data=x)
-    #         if serializer.is_valid():
-    #             serializer.save()
-    #         else :
-    #             return Response(serializer.errors)
-    #     end_time = time.time()
-    #     print("Time for reconciling : %ssecs" % (end_time-start_time) )
-    #     return Response({'sucess':'ok'})
-    # ddva orangeCi
     def post(self, request, *args, **kwargs):
-        send_whatsApp()
-        # for x in request.data:
-        #     # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
-        #     x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
-        #     x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
-        #     serializer = TrxCinetpaySerializer(data=x)
-        #     if serializer.is_valid():
-        #         serializer.save()
-        #     else :
-        #         return Response(serializer.errors)
+        start_time  =time.time()
+        for x in request.data:
+            serializer = TrxCinetpaySerializer(data=x)
+            if serializer.is_valid():
+                serializer.save()
+            else :
+                return Response(serializer.errors)
+        end_time = time.time()
+        print("Time for reconciling : %ssecs" % (end_time-start_time) )
+        return Response({'sucess':'ok'})
+    # ddva orangeCi
+    # def post(self, request, *args, **kwargs):
+    #     send_whatsApp()
+    #     # for x in request.data:
+    #     #     # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
+    #     #     x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
+    #     #     x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
+    #     #     serializer = TrxCinetpaySerializer(data=x)
+    #     #     if serializer.is_valid():
+    #     #         serializer.save()
+    #     #     else :
+    #     #         return Response(serializer.errors)
         return Response({'sucess':'ok'})
         

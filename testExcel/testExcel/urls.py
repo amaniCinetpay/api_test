@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from api_test.views import OperateurRUD, OperateurView, TacheRUD, TacheView, Test_view,Reconcile,Cinetpay
+from api_test.views import OperateurRUD,ReconcileDetail, OperateurView,ProfileView,ProfileRUD, TacheRUD, TacheView,TokenView, Test_view,Reconcile,Cinetpay
 from api_test import views
 from rest_framework.authtoken.views import obtain_auth_token 
 from rest_framework.routers import DefaultRouter
@@ -25,8 +25,10 @@ urlpatterns = [
     path('reconcile/', include('reconcile.urls')),
     path('api_test/', include('api_test.urls')),
     path('admin/', admin.site.urls),
+    path('get_user/',TokenView.as_view(),name="token"),
     path('', Test_view.as_view(), name='test'),
     path('reconciliation/', Reconcile.as_view(), name='reconcile'),
+    path('update_recoonciliation/<int:pk>/', ReconcileDetail.as_view(), name='reconcile'),
     path('reconciliation/verification/', Reconcile.as_view(), name='reconcile'),
     path('cinetpay/', Cinetpay.as_view(), name='cinetpay'),
     # path('auth/', include('rest_framework_social_oauth2.urls')),
@@ -34,6 +36,8 @@ urlpatterns = [
     path('authentication/', include('users.urls')),
     path('operateurs/', OperateurView.as_view(), name='olc'),
     path('operateurs/<int:pk>/', OperateurRUD.as_view(), name='orud'),
+    path('profiles/', ProfileView.as_view(), name='plc'),
+    path('profiles/<int:pk>/', ProfileRUD.as_view(), name='prud'),
     path('taches/', TacheView.as_view(), name='tlc'),
     path('taches/<int:pk>/', TacheRUD.as_view(), name='trud'),
 

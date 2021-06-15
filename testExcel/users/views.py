@@ -1,5 +1,6 @@
 from django.shortcuts import render
-
+from api_test.models import Profile,User
+from api_test.serializers import ProfileSerializer
 # Create your views here.
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -10,8 +11,8 @@ import requests
 from .serializers import CreateUserSerializer
 
 
-CLIENT_ID = 'koTlDEa0dPmTOGVr4Wyx1MbonxEf3dQfHKlNEeiF'
-CLIENT_SECRET = 'mCzR3VT5TPg8Qz4OaWtvG1a2reEA8hhTcq8d9vPDyJTAPquxAofslh5XfuNE4Ai5PpkVdJU9PPIoeNFM74hrAyaYTDVvrSp352CfORAxWHSXHE9FwpUueBNKf0qQgVoo'
+CLIENT_ID = 'Fm17mpWwPJfvMz1VtoPa9ZndD1Uh2bIsbh9YezAB'
+CLIENT_SECRET = 'XcUwtZhIMR2tz9Lq9Hw8K5hJ5A02wT8gT5QBlPekz48eiHvvFzVjooKw7DgagThfUJ9dbG0BQlKrFmkDq898qTC8uyApPjrMJp0esYZmpEERoiBfKz0S4t3ZTJeyApKp'
 
 
 
@@ -39,6 +40,7 @@ def register(request):
                 'client_secret': CLIENT_SECRET,
             },
         )
+        
         return Response(r.json())
     return Response(serializer.errors)
 
@@ -61,7 +63,21 @@ def token(request):
             'client_secret': CLIENT_SECRET,
         },
     )
-    return Response(r.json())
+    user = User.objects.get(username=request.data['username'])
+    nom = user.last_name
+    prenom = user.first_name
+    email = user.email
+    qs = Profile.objects.filter(user=user)
+    serializer = ProfileSerializer(qs, many=True)
+
+    details = {
+        'nom':nom,
+        'prenom':prenom,
+        'email':email,
+        'usename':request.data['username']
+    }
+        
+    return Response({'token':r.json(),'profile':serializer.data,'details':details})
 
 
 

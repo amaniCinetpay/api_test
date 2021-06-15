@@ -2,7 +2,7 @@ from django.db import models
 from django.forms import fields
 from rest_framework import serializers
 
-from .models import  Operateur, Post, Tache,TrxCorrespondent, TrxDifferenceDdvaVisa, TrxRightCorrespodentDdvaVisa,TrxSuccessCinetpay,TrxCinetpay,TrxFailedCinetpay,TrxRightCorrespodent,TrxOperateur,TrxDifference, Trxreconciled,TrxNonereconciled,TrxDdvaVisa
+from .models import  Operateur,Profile, Post, Tache,TrxCorrespondent, TrxDifferenceDdvaVisa, TrxRightCorrespodentDdvaVisa,TrxSuccessCinetpay,TrxCinetpay,TrxFailedCinetpay,TrxRightCorrespodent,TrxOperateur,TrxDifference, Trxreconciled,TrxNonereconciled,TrxDdvaVisa
 
 
 
@@ -11,7 +11,12 @@ class PostSerializer(serializers.ModelSerializer):
         model = Post
         fields ='__all__'
 
-
+class ProfileSerializer(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')
+    class Meta :
+        model = Profile
+        fields ='__all__'
+  
 
 
 

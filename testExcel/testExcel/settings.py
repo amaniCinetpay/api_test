@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-256mpepa1@=_)+zcnup8@serdfj^ssapcteuj7p89fsis_nwf%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -43,11 +43,14 @@ INSTALLED_APPS = [
     'api_test',
     'oauth2_provider',
     'users',
+    'corsheaders',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -55,6 +58,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware', # This needs to be first
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
+    
 ]
 
 
@@ -85,7 +89,7 @@ WSGI_APPLICATION = 'testExcel.wsgi.application'
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-#         'NAME': 'excel_data',                      # Or path to database file if using sqlite3.
+#         'NAME': 'reconciliation',                      # Or path to database file if using sqlite3.
 #         'USER': 'root',                      # Not used with sqlite3.
 #         'PASSWORD': '',                  # Not used with sqlite3.
 #         'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
@@ -193,3 +197,17 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Africa/Nairobi'
+
+BACKGROUND_TASK_RUN_ASYNC = True
+
+
+
+
+CORS_ORIGIN_ALLOW_ALL = True # If this is used then `CORS_ORIGIN_WHITELIST` will not have any effect
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_WHITELIST = [
+    'http://192.168.1.114:4200',
+] # If this is used, then not need to use `CORS_ORIGIN_ALLOW_ALL = True`
+# CORS_ORIGIN_REGEX_WHITELIST = [
+#     'http://localhost:3030',
+# ]

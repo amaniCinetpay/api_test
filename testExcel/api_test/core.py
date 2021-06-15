@@ -410,6 +410,8 @@ def treatment_msisdn(file, fileIndex, digit, indicative):
     for x in file :
         if len(str(x[fileIndex])) > digit :
             x[fileIndex] = str(x[fileIndex]).replace(str(indicative),"")
+        elif len(str(x[fileIndex])) < digit :
+            x[fileIndex] = '0'+ str(x[fileIndex])
 
 
 def treatment_date(file, fileIndex, format):
@@ -472,6 +474,88 @@ def insert_operator(x, agent, index_, tache):
 
 
 
+
+
+
+def send_email(user,tache,information):
+
+    tache = Tache.objects.get(pk=tache)
+    debut_obj =tache.dateDebut
+    fin_obj = tache.dateFin
+    compte = tache.operateur.account
+    ms= {
+        "date debut":str(debut_obj),
+        "date fin ":str(fin_obj),
+        "operateur":compte,
+        "details":information,
+    }
+    body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
+    print(body)
+    email = EmailMessage('Reconciliation terminée',body,'kouakounoeamani1@gmail.com',  to=[user.email])
+    email.send()
+
+    
+
+
+def send_sms(tache):
+    r = requests.post('http://admin.smspro24.com/api/api_http.php', 
+            data={
+                'username' :'', 
+                'password':'',
+                'sender' : 22586446316,
+                'text' : 'Recocnciliation termninée ',
+                'type' : 'text',
+                 'to' : "0142662716"
+            },
+        )
+    print('sms')
+    return Response(r.json)
+
+
+
+
+def send_whatsApp(tache,information) :
+    tache = Tache.objects.get(pk=tache)
+    debut_obj =tache.dateDebut
+    fin_obj = tache.dateFin
+    compte = tache.operateur.account
+    ms= {
+        "date debut":str(debut_obj),
+        "date fin ":str(fin_obj),
+        "operateur":compte,
+        "details":information,
+    }
+    body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
+    print(body)
+    r=requests.post('https://h1kjiyvucg.execute-api.eu-west-2.amazonaws.com/prod/common-core-whatsapp/send-message', 
+        json={
+          "numero" :"22542662716", 
+          "type":"customized",
+          "message" : body
+        },
+    )
+    print('whatsApp')
+
+
+
+
+def notification(user,tache,information):
+    try :
+        send_email(user,tache,information)
+    except Exception as e:
+        raise(e)
+    try:    
+        send_sms(user)
+    except Exception :
+        pass
+    try :
+        send_whatsApp(tache,information)
+    except Exception :
+        pass
+
+
+
+
 def save_file(file, agent, index_, tache) :
     for x in file :
         serializer = TrxOperateurSerializer(data=x)
@@ -497,36 +581,37 @@ def start_treatment(item,a) :
 def second_treatment(failed_trx,success_trx,compte,agent,tache) :
     # insert failed transactions from Cinetay in DB----------
     for x in failed_trx :
-        insert_failed_trx(x,compte,agent,tache)
+        insert_failed_trx(x,compte,agent.username,tache)
     #---------------------------------------------------------
     # insert successfuly transactions from Cinetay in DB------
     for x in success_trx :
-        insert_success_trx(x,compte,agent,tache)
+        insert_success_trx(x,compte,agent.username,tache)
     #---------------------------------------------------------
 
 def third_treatment(agent,compte,tache) :
-    countOperator= TrxOperateur.objects.filter(agent =agent ,account = compte,tache= tache).count()
-    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache= tache).count()
+    countOperator= TrxOperateur.objects.filter(agent =agent.username ,account = compte,tache= tache).count()
+    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username,tache= tache).count()
     diffCount = countOperator - countCinetpay
-    operatorA = TrxOperateur.objects.filter(agent =agent ,account = compte,tache= tache)
-    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache= tache)
+    operatorA = TrxOperateur.objects.filter(agent =agent.username ,account = compte,tache= tache)
+    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username,tache= tache)
     operatorAmount = 0
     for t in operatorA :
         if t.amount != '-' :
             operatorAmount += int(t.amount.split('.')[0])
-    print(operatorAmount)
+    print(operatorAmount,'equal',countOperator)
     CinetpayAmount = 0
     for t in CinetpayA :
         if t.cpm_amount != '-' :
             CinetpayAmount += int(t.cpm_amount)
-    print(CinetpayAmount)
+    print(CinetpayAmount,'equal',countCinetpay)
     diffAmount = operatorAmount - CinetpayAmount
-    TrxOperateur.objects.filter(account= compte,agent=agent,tache= tache ).delete()
-    TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache= tache).delete()
-    TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache= tache).delete()
-    TrxDifference.objects.filter(account= compte,agent=agent,tache= tache).delete()
-    TrxCorrespondent.objects.filter(account= compte,agent=agent,tache= tache).delete()
-    TrxRightCorrespodent.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    # TrxOperateur.objects.filter(account= compte,agent=agent,tache= tache ).delete()
+    # TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    # TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    # TrxDifference.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    # TrxCorrespondent.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    # TrxRightCorrespodent.objects.filter(account= compte,agent=agent,tache= tache).delete()
+    
     information = {
         'difference': 0,
         'montantOperateur':operatorAmount,
@@ -536,6 +621,8 @@ def third_treatment(agent,compte,tache) :
         'countCinetpay':countCinetpay,
         'diffCount':diffCount 
     }
+    notification(agent,tache.pk,information)
+    print(json.dumps(information))
     return information
 
 def forth_treament(difference,compte,agent,tache):
@@ -545,13 +632,13 @@ def forth_treament(difference,compte,agent,tache):
     # Detect each correspondent of trx in difference
     detect_correspondent(compte,agent,tache)
 
-    diff = TrxDifference.objects.filter(agent=agent,account = compte, tache = tache)
+    diff = TrxDifference.objects.filter(agent=agent.username,account = compte, tache = tache)
     diffSerialiser = TrxDifferenceSerializer(diff, many=True)
-    countOperator= TrxOperateur.objects.filter(agent =agent ,account = compte, tache = tache).count()
-    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent, tache = tache).count()
+    countOperator= TrxOperateur.objects.filter(agent =agent.username ,account = compte, tache = tache).count()
+    countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username, tache = tache).count()
     diffCount = countOperator - countCinetpay
-    operatorA = TrxOperateur.objects.filter(agent =agent ,account = compte, tache = tache)
-    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent, tache = tache)
+    operatorA = TrxOperateur.objects.filter(agent =agent.username ,account = compte, tache = tache)
+    CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username, tache = tache)
     operatorAmount = 0
     for t in operatorA :
         if t.amount != '-' :
@@ -565,9 +652,9 @@ def forth_treament(difference,compte,agent,tache):
     diffAmount = operatorAmount - CinetpayAmount
     # b = TrxCorrespondentSerializer(qs, many=True)
     
-    qs = TrxRightCorrespodent.objects.filter(agent=agent,account = compte, tache = tache)
+    qs = TrxRightCorrespodent.objects.filter(agent=agent.username,account = compte, tache = tache)
     serializer = TrxRightCorrespodentSerializer(qs, many=True)
-    
+ 
     information = {
         'With correspondent': serializer.data, 
         'Not correspondent':diffSerialiser.data,
@@ -578,65 +665,17 @@ def forth_treament(difference,compte,agent,tache):
         'countCinetpay':countCinetpay,
         'diffCount':diffCount 
     }
+    notification(agent,tache.pk,information)
     print(json.dumps(information))
     return information
-
-
-
-def send_email(user,tache):
-    email = EmailMessage('Le lien des transactions reconciliées', 'http://127.0.0.1:8000/reconciliation/ il s\'agit de la tache','kouakounoeamani1@gmail.com',  to=['kouakounoeamani1@gmail.com'])
-    email.send()
-    print('ok')
-    
-
-
-def send_sms(tache):
-    r = requests.post('http://admin.smspro24.com/api/api_http.php', 
-            data={
-                'username' :'', 
-                'password':'',
-                'sender' : 22586446316,
-                'text' : 'Recocnciliation termninée ',
-                'type' : 'text',
-                 'to' : "0142662716"
-            },
-        )
-    return Response(r.json)
-
-
-def send_whatsApp() :
-    requests.post('https://h1kjiyvucg.execute-api.eu-west-2.amazonaws.com/prod/common-core-whatsapp/send-message', 
-        data={
-            "numero" :'42662716', 
-            "type":'customized',
-            'message' : 'reconciliation',
-        },
-    )
-
-
-
-
-def notification(user,tache):
-    try :
-        send_email(user,tache)
-    except Exception as e:
-        raise(e)
-    try:    
-        send_sms(user)
-    except Exception :
-        pass
-    try :
-        send_whatsApp()
-    except Exception :
-        pass
 
 
 @background(queue='my-queue')
 def execute_reconcile(item,tache):
     tache =Tache.objects.get(pk=tache)
-    print('je suis rentre')
+    print('je suis rentré')
     headers = {
-        'Authorization': 'Bearer 6UlBoyKdt8rjF2oFbGhMi84ffQFYvu',
+        'Authorization': 'Bearer egAcQuMYMovPCzeDd7OmbXYW1jtibD',
         'Content-Type': 'application/json'
     }   
     requests.post('http://localhost:8000/api_test/catered/',

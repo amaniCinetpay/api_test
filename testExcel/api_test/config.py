@@ -437,6 +437,48 @@ CONFIG = [
                         },
                     }
             },
+            {
+                "operators" : ["OMBF"], #OMBF
+                "operatorName" : "OMBF",
+                "typeOperator" : "Mobile Money",
+                "index" : {
+                    "datetime" : {
+                        "fileIndex" : "Transaction Date",
+                        "description" : "date et heure",
+                        "format" : "DD-mm-YYYY  HH:MM:SS"
+                    },
+                    "msisdn" : {
+                        "fileIndex" : "Sender Mobile Number",
+                        "description" : "numéro",
+                        "indicative" : "237",
+                        "digit" : 8,
+                    },
+                    "reference" : {
+                        "fileIndex" : "Transaction ID",
+                        "description" : "Référence de paiement",
+                    },
+                    "status" : {
+                        "fileIndex" : "Status",
+                        "type" : "status"
+                    },
+                    "amount" : { 
+                        "fileIndex" : "Transaction Amount",
+                    },
+                    "account" : {
+                        "fileIndex" : "Receiver Mobile Number",
+                        "descripttion" : "Compte de CinetPay chez l'opérateur",
+                    }
+                },
+                
+                "config" : {
+                    "OMBF" : #OMBF
+                        {
+                            "account" : "65910683",
+                            "paymentMethod" : "OMBF",
+                            "exclude" : []
+                        },
+                    }
+            },
             
         ]
 
