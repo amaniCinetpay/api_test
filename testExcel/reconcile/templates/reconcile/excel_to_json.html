@@ -56,7 +56,7 @@
                 </div>
     <div class="col-md-12">
         <pre id="jsondata"></pre>
-        <input type="hidden" id="valeur" name="valeur">
+        <input type="hidden" id="fichier" name="fichier">
     </div>
             </div>
         </div>
@@ -96,7 +96,7 @@
                   tab = rowObject;
                   
              });
-            $("#valeur").val(JSON.stringify(tab,undefined,4));
+            $("#fichier").val(JSON.stringify(tab,undefined,4));
             }
         
         }

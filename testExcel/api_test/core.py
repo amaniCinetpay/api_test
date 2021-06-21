@@ -2,7 +2,7 @@ from django.db.models import fields
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.decorators import parser_classes 
 from .serializers import PostSerializer, TrxCinetpaySerializer,TrxDifferenceSerializer,TrxRightCorrespodentSerializer,TrxOperateurSerializer,TrxreconciledSerializer,TrxRightCorrespodentDdvaVisaSerializer,TrxDifferenceDdvaVisaSerializer
-from .models import Post, Tache,TrxDifference,TrxOperateur,TrxRightCorrespodent,TrxFailedCinetpay,TrxCinetpay,TrxSuccessCinetpay,TrxCorrespondent, Trxreconciled,TrxNonereconciled,TrxDifferenceDdvaVisa,TrxNonereconciledDdvaVisa,TrxreconciledDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxDdvaVisa
+from .models import Post, Tache,TrxDifference,Operateur,TrxOperateur,TrxRightCorrespodent,TrxFailedCinetpay,TrxCinetpay,TrxSuccessCinetpay,TrxCorrespondent, Trxreconciled,TrxNonereconciled,TrxDifferenceDdvaVisa,TrxNonereconciledDdvaVisa,TrxreconciledDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxDdvaVisa
 from datetime import date, datetime
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,6 +14,8 @@ from django.core.mail import EmailMessage
 from .config import *
 from asgiref.sync import sync_to_async
 from background_task import background
+from .constantes import *
+import string
 # from celery.decorators import task
 
 
@@ -318,8 +320,16 @@ def file_treatment_oneci_moov(file,agent):
 def file_treatment_ddva_visa(file,debut,agent,tache) :
     for x in file :
         b = x['Date et heure'].split(' ')[0]
-        x['Date et heure']=x['Date et heure'].replace(b,debut.split('T')[0]).split(' +')[0]
-        print(x['Date et heure'])
+        h=x['Date et heure'].split(' ')[1]
+        print(b,h,"-------------------------------------")
+        # x['Date et heure']=x['Date et heure'].replace(b,str(debut).split('T')[0]).split(' +')[0]
+        x['Date et heure'] = '20'+b.split('-')[2]+'-'+b.split('-')[0]+'-'+b.split('-')[1]+' '+h
+        
+        
+        date_time_str = x['Date et heure']
+        date_time_obj = datetime. strptime(str(date_time_str), '%Y-%m-%d %H:%M:%S')
+        x['Date et heure'] = date_time_obj
+        print(x['Date et heure'],type(x['Date et heure']),type(debut),'++++++++++++++++++++++++++++')
         serializer = TrxOperateurSerializer(data=x)
         insert_ddva_visa_trx(x,agent,tache)
 
@@ -481,17 +491,18 @@ def send_email(user,tache,information):
 
     tache = Tache.objects.get(pk=tache)
     debut_obj =tache.dateDebut
+    fileName = tache.fileName
     fin_obj = tache.dateFin
     compte = tache.operateur.account
     ms= {
-        "date debut":str(debut_obj),
-        "date fin ":str(fin_obj),
+        "Nom du fichier":fileName,
         "operateur":compte,
         "details":information,
     }
     body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
     print(body)
     email = EmailMessage('Reconciliation terminée',body,'kouakounoeamani1@gmail.com',  to=[user.email])
+    print(user.email)
     email.send()
 
     
@@ -518,10 +529,10 @@ def send_whatsApp(tache,information) :
     tache = Tache.objects.get(pk=tache)
     debut_obj =tache.dateDebut
     fin_obj = tache.dateFin
+    fileName = tache.fileName
     compte = tache.operateur.account
     ms= {
-        "date debut":str(debut_obj),
-        "date fin ":str(fin_obj),
+        "Nom du fichier":fileName,
         "operateur":compte,
         "details":information,
     }
@@ -675,7 +686,7 @@ def execute_reconcile(item,tache):
     tache =Tache.objects.get(pk=tache)
     print('je suis rentré')
     headers = {
-        'Authorization': 'Bearer egAcQuMYMovPCzeDd7OmbXYW1jtibD',
+        'Authorization': 'Bearer M2ZIgS8Vv1BsMLmP3C4xyOhoz2bXGX',
         'Content-Type': 'application/json'
     }   
     requests.post('http://localhost:8000/api_test/catered/',
@@ -688,3 +699,146 @@ def execute_reconcile(item,tache):
 
 
 # get_blog = sync_to_async(execute_reconcile, thread_sensitive=True)
+
+
+
+
+@background(queue='my-queue')
+def execute_reconcile_ddva(trx,tache):
+    tache =Tache.objects.get(pk=tache)
+    print('je suis rentré')
+    headers = {
+        'Authorization': 'Bearer M2ZIgS8Vv1BsMLmP3C4xyOhoz2bXGX',
+        'Content-Type': 'application/json'
+    }   
+    requests.post('http://localhost:8000/api_test/catered_ddva/',
+        json = {
+            'trx':trx,
+            'id_tache':tache.pk,
+        }, headers=headers
+    )
+    # return Response(r.json)
+
+
+
+def start_treatment_ddva(operator,debut_obj,request,trx,fin_obj,fileName):
+    operateur = Operateur.objects.get(code=operator) 
+    date = datetime.now()
+    tache = Tache.objects.create(
+        libelle='tache #{}'.format(date), 
+        description='', 
+        dateDebut=debut_obj, 
+        dateFin=fin_obj,
+        owner=request.user, 
+        operateur=operateur,
+        fileName = fileName
+        )
+    return tache
+
+
+def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
+    compte = trx[0]['ID du marchand']
+    all_failed_trx =  TrxCinetpay.objects.filter(payment_method="DDVAVISAM").exclude(cpm_trans_status__contains="SUCCES")
+    all_sucess_trx = TrxCinetpay.objects.filter(cpm_trans_status="SUCCES",payment_method="DDVAVISAM")
+    # failed_trx = Cinetpay_transaction_failed(debut_obj,fin_obj,all_failed_trx)  # recover failed transactions from Cinetay
+    # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay 
+    failed_trx = all_failed_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover failed transactions from Cinetay
+    success_trx = all_sucess_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj) # recover successfuly transactions from Cinetay 
+    # insert failed transactions from Cinetay in DB----------
+    for x in failed_trx :
+        insert_failed_trx(x,compte,agent.username,tache)
+    #---------------------------------------------------------
+    # insert successfuly transactions from Cinetay in DB------
+    for x in success_trx :
+        insert_success_trx(x,compte,agent.username,tache)
+    #---------------------------------------------------------
+    difference = match_table_ddva_visa(compte,agent.username) #match DDVA VISA trx and CinetpaySucessfuly trx and return difference    
+    if len(difference) == 0 :
+        Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0])
+        countOperator= TrxDdvaVisa.objects.filter(account= compte,agent =agent,tache=tache ).count()
+        countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache=tache).count()
+        diffCount = countOperator - countCinetpay
+        operatorA = TrxDdvaVisa.objects.filter(agent =agent ,account = compte,tache=tache)
+        CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache=tache)
+        operatorAmount = 0
+        for t in operatorA :
+            if t.amount != '-' :
+                t.amount = t.amount.translate({ord(c): None for c in string.whitespace})
+                print(t.amount)
+                operatorAmount += int(t.amount)
+        print(operatorAmount)
+        CinetpayAmount = 0
+        for t in CinetpayA :
+            if t.cpm_amount != '-' :
+                CinetpayAmount += int(t.cpm_amount)
+        print(CinetpayAmount)
+        diffAmount = operatorAmount - CinetpayAmount
+        TrxDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache ).delete()
+        TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        TrxDifferenceDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        TrxCorrespondent.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        TrxRightCorrespodentDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())
+        information = {
+            'difference': 0,
+            'montantOperateur':operatorAmount,
+            'montantCinetpay':CinetpayAmount,
+            'diffMontant':diffAmount,
+            'countOperator':countOperator,
+            'countCinetpay':countCinetpay,
+            'diffCount':diffCount 
+        }
+        # notification(request.user,tache.id)
+        print(tache.id)
+        return information
+        # return Response(information , status=status.HTTP_200_OK)
+    #insert trx in difference table 
+    else :
+        for x in difference :
+            insert_difference_ddva_visa(x,compte,agent.username,tache)
+        # Detect each correspondent of trx in difference
+        detect_correspondent_ddva_visa(compte,agent.username,tache)
+        end_time = time.time()
+        print("Time for reconciling : %ssecs" % (end_time-start_time) )
+        # operatorAmount = TrxOperateur.objects.aggregate(Sum('amount'))
+        # CinetpayAmount = TrxSuccessCinetpay.objects.aggregate(Sum('amount'))
+        # print(CinetpayAmount,operatorAmount)
+        # diffAmount = operatorAmount['montant__avg'] - CinetpayAmount['Montant__avg']
+        Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0])
+        diff = TrxDifferenceDdvaVisa.objects.filter(agent=agent,account = compte)
+        diffSerialiser = TrxDifferenceDdvaVisaSerializer(diff, many=True)
+        countOperator= TrxDdvaVisa.objects.filter(agent =agent ,account = compte).count()
+        countCinetpay = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent).count()
+        diffCount = countOperator - countCinetpay
+        operatorA = TrxDdvaVisa.objects.filter(agent =agent ,account = compte)
+        CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent)
+        operatorAmount = 0
+        for t in operatorA :
+            if t.amount != '-' :
+                t.amount = t.amount.translate({ord(c): None for c in string.whitespace})
+                operatorAmount += int(t.amount)
+        print(operatorAmount)
+        CinetpayAmount = 0
+        for t in CinetpayA :
+            if t.cpm_amount != '-' :
+                CinetpayAmount += int(t.cpm_amount)
+        print(CinetpayAmount)
+        # TrxCinetpay.objects.filter(payment_method='DDVAVISAM').delete()
+        # print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())
+        diffAmount = operatorAmount - CinetpayAmount
+        # b = TrxCorrespondentSerializer(qs, many=True)
+        
+        qs = TrxRightCorrespodentDdvaVisa.objects.filter(agent=agent,account = compte)
+        serializer = TrxRightCorrespodentDdvaVisaSerializer(qs, many=True)
+        information = {
+            'With correspondent': serializer.data, 
+            'Not correspondent':diffSerialiser.data,
+            'montantOperateur':operatorAmount,
+            'montantCinetpay':CinetpayAmount,
+            'diffMontant':diffAmount,
+            'countOperator':countOperator,
+            'countCinetpay':countCinetpay,
+            'diffCount':diffCount 
+        }
+        return information

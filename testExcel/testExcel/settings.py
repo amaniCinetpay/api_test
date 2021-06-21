@@ -164,22 +164,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000000000
 
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTIFICATION_CLASSES': (
-       'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
-       'rest_framework.authentication.SessionAuthentication',
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTIFICATION_CLASSES': (
+#        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+#        'rest_framework.authentication.SessionAuthentication',
         
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-}
+#     ),
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framework.permissions.IsAuthenticated',
+#     ),
+#     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+#     'PAGE_SIZE': 11,
+    
+# }
 
-AUTHENTICATION_BACKENDS = (
+# AUTHENTICATION_BACKENDS = (
 
-   'django.contrib.auth.backends.ModelBackend', # To keep the Browsable API
-   'oauth2_provider.backends.OAuth2Backend',
-)
+#    'django.contrib.auth.backends.ModelBackend', # To keep the Browsable API
+#    'oauth2_provider.backends.OAuth2Backend',
+# )
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -206,7 +209,7 @@ BACKGROUND_TASK_RUN_ASYNC = True
 CORS_ORIGIN_ALLOW_ALL = True # If this is used then `CORS_ORIGIN_WHITELIST` will not have any effect
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = [
-    'http://192.168.1.114:4200',
+    'http://192.168.1.180:4200',
 ] # If this is used, then not need to use `CORS_ORIGIN_ALLOW_ALL = True`
 # CORS_ORIGIN_REGEX_WHITELIST = [
 #     'http://localhost:3030',

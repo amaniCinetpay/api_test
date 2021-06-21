@@ -40,5 +40,4 @@ urlpatterns = [
     path('profiles/<int:pk>/', ProfileRUD.as_view(), name='prud'),
     path('taches/', TacheView.as_view(), name='tlc'),
     path('taches/<int:pk>/', TacheRUD.as_view(), name='trud'),
-
 ]

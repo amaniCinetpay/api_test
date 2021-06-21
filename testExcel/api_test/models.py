@@ -37,6 +37,7 @@ class Operateur(models.Model):
         return self.nom
 
 class Tache(models.Model):
+    fileName = models.CharField(max_length=100)
     libelle     = models.CharField(max_length=50)
     description = models.CharField(max_length=512)
     dateDebut   = models.DateTimeField(verbose_name='Date de début')
@@ -50,6 +51,10 @@ class Tache(models.Model):
 
     def __str__(self) -> str:
         return self.libelle
+
+    class Meta:
+        ordering = ['-dateCreation']
+
 
 
 class TrxOperateur(models.Model):
