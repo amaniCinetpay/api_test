@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from api_test.views import OperateurRUD,ReconcileDetail, OperateurView,ProfileView,ProfileRUD, TacheRUD, TacheView,TokenView, Test_view,Reconcile,Cinetpay
+from api_test.views import OperateurRUD,ReconcileUpdate,TrxRightCorrespodentb,TrxRightCorrespodentRUDView,TrxDifferenceRUDView,TrxDifferenceView, OperateurView,ProfileView,ProfileRUD, TacheRUD, TacheView,TokenView, Test_view,Reconcile,Cinetpay
 from api_test import views
 from rest_framework.authtoken.views import obtain_auth_token 
 from rest_framework.routers import DefaultRouter
@@ -28,7 +28,7 @@ urlpatterns = [
     path('get_user/',TokenView.as_view(),name="token"),
     path('', Test_view.as_view(), name='test'),
     path('reconciliation/', Reconcile.as_view(), name='reconcile'),
-    path('update_recoonciliation/<int:pk>/', ReconcileDetail.as_view(), name='reconcile'),
+    path('update_reconciliation/<int:pk>/', ReconcileUpdate.as_view(), name='reconcile'),
     path('reconciliation/verification/', Reconcile.as_view(), name='reconcile'),
     path('cinetpay/', Cinetpay.as_view(), name='cinetpay'),
     # path('auth/', include('rest_framework_social_oauth2.urls')),
@@ -40,4 +40,9 @@ urlpatterns = [
     path('profiles/<int:pk>/', ProfileRUD.as_view(), name='prud'),
     path('taches/', TacheView.as_view(), name='tlc'),
     path('taches/<int:pk>/', TacheRUD.as_view(), name='trud'),
+    path('<int:tache_id>/trxdifferences/', TrxDifferenceView.as_view(), name='trxdifferences'),
+    path('<int:tache_id>/trxdifferences/<int:pk>/', TrxDifferenceRUDView.as_view(), name='trxdifference'),
+    path('<int:tache_id>/trxrightcorrespodent/', TrxRightCorrespodentb.as_view(), name='trxrightcorrespodent'),
+    path('<int:tache_id>/trxrightcorrespodent/<int:pk>/', TrxRightCorrespodentRUDView.as_view(), name='rudtrxrightcorrespodent'),
+    # path('export/<int:pk>/', ExportFile.as_view(), name='trud'),
 ]

@@ -212,19 +212,19 @@ def insert_reconciled_trx(x,tache):
 
 #Detect each correspondant of Cinetpay failed transaction--------------------------------------------------------------------------------------
 def detect_correspondent(compte,agent,tache):
-    difference = TrxDifference.objects.all()
+    difference = TrxDifference.objects.filter(tache=tache)
     for trx in difference : # select each element from difference
-        corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cel_phone_num=trx.phone_num) # select all his correspondent
-        right_corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cel_phone_num=trx.phone_num,created_at=trx.payment_date) # select transactions for which payment_date and creation are the same
+        corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cel_phone_num=trx.phone_num,tache=tache) # select all his correspondent
+        right_corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cel_phone_num=trx.phone_num,created_at=trx.payment_date,tache=tache) # select transactions for which payment_date and creation are the same
         if len(right_corresp) != 0 : 
             for t in right_corresp : #insert those transactions in rightCorespondent table 
                 print(trx.phone_num,trx.payment_date,trx.amount,"-->",t.cel_phone_num,t.created_at,t.cpm_amount,t.cpm_trans_id,"direct")
                 insert_finalCorrespondant(trx,t,compte,agent,tache)
-            TrxgetRightCorrenpondent = TrxRightCorrespodent.objects.all() # Select transactions having already their correspondents
+            TrxgetRightCorrenpondent = TrxRightCorrespodent.objects.filter(tache=tache) # Select transactions having already their correspondents
             #And  Delete them from difference and TrxFailed table 
             for s in TrxgetRightCorrenpondent : 
-                TrxFailedCinetpay.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account=compte,agent= agent).delete()
-                TrxDifference.objects.filter(phone_num=s.phone_num,amount = s.amount,account=compte,agent= agent).delete()
+                TrxFailedCinetpay.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account=compte,agent= agent,tache=tache).delete()
+                TrxDifference.objects.filter(phone_num=s.phone_num,amount = s.amount,account=compte,agent= agent,tache=tache).delete()
         elif len(corresp) != 0 : # check if he has any correspondent
      
             for x in corresp : # if yes ,insert his correspondent 
@@ -233,11 +233,11 @@ def detect_correspondent(compte,agent,tache):
             print(trx.phone_num,trx.payment_date,trx.amount,"-->",final.cel_phone_num,final.created_at,final.cpm_amount,final.cpm_trans_id)
             insert_finalCorrespondant(trx, final,compte,agent,tache)
             #And  Delete them from difference and TrxFailed table 
-            TrxgetRightCorrenpondent = TrxRightCorrespodent.objects.all() # Select transactions having already their correspondents
+            TrxgetRightCorrenpondent = TrxRightCorrespodent.objects.filter(tache=tache) # Select transactions having already their correspondents
             for s in TrxgetRightCorrenpondent : 
-                TrxFailedCinetpay.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account= compte,agent=agent).delete()
-                TrxDifference.objects.filter(phone_num=s.phone_num,amount = s.amount,account=compte,agent=agent).delete()
-                TrxCorrespondent.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account= compte,agent=agent).delete()
+                TrxFailedCinetpay.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account= compte,agent=agent,tache=tache).delete()
+                TrxDifference.objects.filter(phone_num=s.phone_num,amount = s.amount,account=compte,agent=agent,tache=tache).delete()
+                TrxCorrespondent.objects.filter(cel_phone_num=s.cel_phone_numCorrespondant,cpm_amount = s.AmountCorrespodent,account= compte,agent=agent,tache=tache).delete()
         else :
             print(trx.phone_num,"doesn't have any correspondent")
 
@@ -247,18 +247,18 @@ def detect_correspondent(compte,agent,tache):
 
 #Detect each correspondant of Cinetpay failed transaction for DDVA VISA precisely--------------------------------------------------------------------------------------
 def detect_correspondent_ddva_visa(compte,agent,tache):
-    difference = TrxDifferenceDdvaVisa.objects.all()
+    difference = TrxDifferenceDdvaVisa.objects.filter(tache=tache)
     for trx in difference : # select each element from difference
-        corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cpm_custom=trx.trans_id) # select  his correspondent
+        corresp = TrxFailedCinetpay.objects.filter(cpm_amount=trx.amount,cpm_custom=trx.trans_id,tache=tache) # select  his correspondent
         if len(corresp) != 0 : 
             for t in corresp : #insert those transactions in rightCorespondent table 
                 print(trx.trans_id,trx.payment_date,trx.amount,"-->",t.cpm_custom,t.created_at,t.cpm_amount,t.cpm_trans_id,"direct")
                 insert_finalCorrespondant_ddva_visa(trx,t,compte,agent,tache)
-            TrxgetRightCorrenpondent = TrxRightCorrespodentDdvaVisa.objects.all() # Select transactions having already their correspondents
+            TrxgetRightCorrenpondent = TrxRightCorrespodentDdvaVisa.objects.filter(tache=tache) # Select transactions having already their correspondents
             #And  Delete them from difference and TrxFailed table 
             for s in TrxgetRightCorrenpondent : 
-                TrxFailedCinetpay.objects.filter(cpm_custom=s.cpm_customCorrespondant,cpm_amount = s.AmountCorrespodent,account=compte,agent= agent).delete()
-                TrxDifference.objects.filter(trans_id=s.trans_id,payid=s.payid,amount = s.amount,account=compte,agent= agent).delete()
+                TrxFailedCinetpay.objects.filter(cpm_custom=s.cpm_customCorrespondant,cpm_amount = s.AmountCorrespodent,account=compte,agent= agent,tache=tache).delete()
+                TrxDifference.objects.filter(trans_id=s.trans_id,payid=s.payid,amount = s.amount,account=compte,agent= agent,tache=tache).delete()
         else :
             print(trx.trans_id,"doesn't have any correspondent")
 
@@ -335,14 +335,15 @@ def file_treatment_ddva_visa(file,debut,agent,tache) :
 
 
 #transaction from operator and not from Cinetpay------------------------------------------------------------------------------
-def match_table(compte,agent):
-    difference = TrxOperateur.objects.filter(account = compte,agent=agent).exclude(payid__in=TrxSuccessCinetpay.objects.values_list('cpm_payid', flat=True))
+def match_table(tache):
+    
+    difference = TrxOperateur.objects.filter(tache=tache).exclude(payid__in=TrxSuccessCinetpay.objects.filter(tache=tache).values_list('cpm_payid', flat=True))
     return difference
 #-----------------------------------------------------------------------------------------------------------------------
 
 #transaction from DDVA VISA and not from Cinetpay------------------------------------------------------------------------------
-def match_table_ddva_visa(compte,agent):
-    difference = TrxDdvaVisa.objects.filter(account=compte,agent=agent).exclude(payid__in=TrxSuccessCinetpay.objects.values_list('cpm_payid', flat=True))
+def match_table_ddva_visa(tache):
+    difference = TrxDdvaVisa.objects.filter(tache=tache).exclude(payid__in=TrxSuccessCinetpay.objects.filter(tache=tache).values_list('cpm_payid', flat=True))
     return difference
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -497,7 +498,12 @@ def send_email(user,tache,information):
     ms= {
         "Nom du fichier":fileName,
         "operateur":compte,
-        "details":information,
+        "Nombre transacions Cinetpay":information['countCinetpay'],
+        "Nombre transacions Operateur":information['countOperator'],
+        "difference transaction":information['diffCount'],
+        "Montant Cinetpay":information['montantCinetpay'],
+        "Montant Operateur":information['montantOperateur'],
+        "Difference Montant":information['diffMontant']
     }
     body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
     print(body)
@@ -534,7 +540,12 @@ def send_whatsApp(tache,information) :
     ms= {
         "Nom du fichier":fileName,
         "operateur":compte,
-        "details":information,
+        "Nombre transacions Cinetpay":information['countCinetpay'],
+        "Nombre transacions Operateur":information['countOperator'],
+        "difference transaction":information['diffCount'],
+        "Montant Cinetpay":information['montantCinetpay'],
+        "Montant Operateur":information['montantOperateur'],
+        "Difference Montant":information['diffMontant']
     }
     body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
     print(body)
@@ -545,7 +556,7 @@ def send_whatsApp(tache,information) :
           "message" : body
         },
     )
-    print('whatsApp')
+    print('whatsApp',dddd)
 
 
 
@@ -623,6 +634,8 @@ def third_treatment(agent,compte,tache) :
     # TrxCorrespondent.objects.filter(account= compte,agent=agent,tache= tache).delete()
     # TrxRightCorrespodent.objects.filter(account= compte,agent=agent,tache= tache).delete()
     
+    
+    Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
     information = {
         'difference': 0,
         'montantOperateur':operatorAmount,
@@ -632,12 +645,14 @@ def third_treatment(agent,compte,tache) :
         'countCinetpay':countCinetpay,
         'diffCount':diffCount 
     }
+    Tache.objects.filter(pk=tache.id    ).update(etat=ETAT_TACHE[2][0]) 
     notification(agent,tache.pk,information)
     print(json.dumps(information))
     return information
 
 def forth_treament(difference,compte,agent,tache):
     #insert trx in difference table
+   
     for x in difference :
         insert_difference(x,compte,agent,tache)
     # Detect each correspondent of trx in difference
@@ -666,6 +681,7 @@ def forth_treament(difference,compte,agent,tache):
     qs = TrxRightCorrespodent.objects.filter(agent=agent.username,account = compte, tache = tache)
     serializer = TrxRightCorrespodentSerializer(qs, many=True)
  
+    
     information = {
         'With correspondent': serializer.data, 
         'Not correspondent':diffSerialiser.data,
@@ -676,17 +692,19 @@ def forth_treament(difference,compte,agent,tache):
         'countCinetpay':countCinetpay,
         'diffCount':diffCount 
     }
+    Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0]) 
+    Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
     notification(agent,tache.pk,information)
     print(json.dumps(information))
     return information
 
 
 @background(queue='my-queue')
-def execute_reconcile(item,tache):
+def execute_reconcile(item,tache,token):
     tache =Tache.objects.get(pk=tache)
     print('je suis rentré')
     headers = {
-        'Authorization': 'Bearer M2ZIgS8Vv1BsMLmP3C4xyOhoz2bXGX',
+        'Authorization': token,
         'Content-Type': 'application/json'
     }   
     requests.post('http://localhost:8000/api_test/catered/',
@@ -704,11 +722,11 @@ def execute_reconcile(item,tache):
 
 
 @background(queue='my-queue')
-def execute_reconcile_ddva(trx,tache):
+def execute_reconcile_ddva(trx,tache,token):
     tache =Tache.objects.get(pk=tache)
     print('je suis rentré')
     headers = {
-        'Authorization': 'Bearer M2ZIgS8Vv1BsMLmP3C4xyOhoz2bXGX',
+        'Authorization': token,
         'Content-Type': 'application/json'
     }   
     requests.post('http://localhost:8000/api_test/catered_ddva/',
@@ -752,7 +770,7 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
     for x in success_trx :
         insert_success_trx(x,compte,agent.username,tache)
     #---------------------------------------------------------
-    difference = match_table_ddva_visa(compte,agent.username) #match DDVA VISA trx and CinetpaySucessfuly trx and return difference    
+    difference = match_table_ddva_visa(tache) #match DDVA VISA trx and CinetpaySucessfuly trx and return difference    
     if len(difference) == 0 :
         Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0])
         countOperator= TrxDdvaVisa.objects.filter(account= compte,agent =agent,tache=tache ).count()
@@ -789,6 +807,7 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
             'countCinetpay':countCinetpay,
             'diffCount':diffCount 
         }
+        Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
         # notification(request.user,tache.id)
         print(tache.id)
         return information
@@ -841,4 +860,5 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
             'countCinetpay':countCinetpay,
             'diffCount':diffCount 
         }
+        Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
         return information

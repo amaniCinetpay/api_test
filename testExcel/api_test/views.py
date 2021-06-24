@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import OperateurSerializer,ProfileSerializer, PostSerializer, TacheSerializer, TrxCinetpaySerializer,TrxDifferenceSerializer,TrxRightCorrespodentSerializer,TrxOperateurSerializer,TrxreconciledSerializer,TrxRightCorrespodentDdvaVisaSerializer,TrxDifferenceDdvaVisaSerializer
+from .serializers import OperateurSerializer,ProfileSerializer, PostSerializer, TacheSerializer, TrxCinetpaySerializer,TrxDifferenceSerializer,TrxRightCorrespodentSerializer,TrxOperateurSerializer,TrxreconciledSerializer,TacheSerializer,TrxRightCorrespodentDdvaVisaSerializer,TrxDifferenceDdvaVisaSerializer
 from .models import Operateur,Profile, Post, Tache,TrxDifference,TrxOperateur,TrxRightCorrespodent,TrxFailedCinetpay,TrxCinetpay,TrxSuccessCinetpay,TrxCorrespondent, Trxreconciled,TrxNonereconciled,TrxDifferenceDdvaVisa,TrxNonereconciledDdvaVisa,TrxreconciledDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxRightCorrespodentDdvaVisa,TrxDdvaVisa
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, date
@@ -19,6 +19,7 @@ from rest_framework import status
 from braces.views import CsrfExemptMixin
 from django.db.models import Sum,Avg
 import string
+from django.core import serializers
 from .core import *
 from api_test import core
 from . import core
@@ -40,8 +41,6 @@ class OperateurView(generics.ListCreateAPIView):
 class OperateurRUD(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = OperateurSerializer
     queryset = Operateur.objects.all()
-
-
 
 class ProfileView(generics.ListCreateAPIView):
     serializer_class = ProfileSerializer
@@ -80,6 +79,67 @@ class ProfileRUD(generics.RetrieveUpdateDestroyAPIView):
         serializer_class = ProfileSerializer
         queryset = Profile.objects.all()
 
+
+
+class TrxWithCorrespondent(generics.RetrieveUpdateDestroyAPIView):
+    
+    serializer_class = OperateurSerializer
+    queryset = Operateur.objects.all()
+    
+    def retrieve(self, request, *args, **kwargs):
+        print(kwargs['pk'])
+        tache = Tache.objects.get(pk=kwargs['pk'])       
+        qs = TrxRightCorrespodent.objects.filter(tache = tache)
+        serializer = TrxRightCorrespodentSerializer(qs, many=True)    
+        # task = Tache.objects.filter(pk=kwargs['pk'])
+        # dt = serializers.serialize('json', qs)
+        # dt = TacheSerializer(task)
+    
+        return  Response(serializer.data)
+
+
+
+
+
+class TrxRightCorrespodentRUDView(generics.RetrieveUpdateDestroyAPIView): 
+    serializer_class = TrxRightCorrespodentSerializer
+    def get_queryset(self):
+        return  TrxRightCorrespodent.objects.filter(tache=self.kwargs['tache_id'])
+    
+
+class TrxRightCorrespodentb(generics.ListCreateAPIView):
+    serializer_class =TrxRightCorrespodentSerializer
+
+    def get_queryset(self):
+        return  TrxRightCorrespodent.objects.filter(tache=self.kwargs['tache_id'])
+
+
+
+
+class TrxDifferenceRUDView(generics.RetrieveUpdateDestroyAPIView):
+    
+    serializer_class = TrxDifferenceSerializer
+    def get_queryset(self):
+        return  TrxDifference.objects.filter(tache=self.kwargs['tache_id'])
+    
+    # def retrieve(self, request, *args, **kwargs):
+    #     print(kwargs['pk'])
+    #     tache = Tache.objects.get(pk=kwargs['pk'])
+    #     diff = TrxDifference.objects.filter(tache = tache)
+    #     diffSerialiser = TrxDifferenceSerializer(diff, many=True)       
+        
+    #     # task = Tache.objects.filter(pk=kwargs['pk'])
+    #     # dt = serializers.serialize('json', qs)
+    #     # dt = TacheSerializer(task)
+    
+    #     return  Response(diffSerialiser.data)
+
+
+class TrxDifferenceView(generics.ListCreateAPIView):
+    serializer_class = TrxDifferenceSerializer
+
+    def get_queryset(self):
+        return  TrxDifference.objects.filter(tache=self.kwargs['tache_id'])
 
 
 
@@ -130,100 +190,101 @@ class Reconcile(APIView):
 
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
-    def get(self, request, *args, **kwargs) :
-        choice = request.query_params['choix']
-        operator = request.query_params['operateur']
-        start = request.query_params['debut']
-        end = request.query_params['fin']
-        start_obj = datetime.strptime(start, "%Y-%m-%dT%H:%M")
-        end_obj = datetime.strptime(end, "%Y-%m-%dT%H:%M")
-        consultation = []
-        if choice == '1' : # consult reconciled transaction
-            if operator == '1': # ORANGE CI  
-                all_trx = Trxreconciled.objects.filter(account = '0759062996')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '2' : #DDVA ORANGE 
-                all_trx = Trxreconciled.objects.filter(account = '0789248344')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '3': # ONECI ORANGE CI
-                all_trx = Trxreconciled.objects.filter(account = '0748884654')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '4': # ORANGE SENEGAL
-                all_trx = Trxreconciled.objects.filter(account = '786442199')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '5':  # Orange Cameroun
-                all_trx = Trxreconciled.objects.filter(account = '657986833')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '6':  # mtnci
-                all_trx = Trxreconciled.objects.filter(account = 'CINETPAY')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '7':   # oneci mtn
-                all_trx = Trxreconciled.objects.filter(account = 'ONECI')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
-            else :
-                return Response({'operator':'doesn\'t exist'}, status=status.HTTP_404_NOT_FOUND)
+    # def get(self, request, *args, **kwargs) :
+    #     choice = request.query_params['choix']
+    #     operator = request.query_params['operateur']
+    #     start = request.query_params['debut']
+    #     end = request.query_params['fin']
+    #     start_obj = datetime.strptime(start, "%Y-%m-%dT%H:%M")
+    #     end_obj = datetime.strptime(end, "%Y-%m-%dT%H:%M")
+    #     consultation = []
+    #     if choice == '1' : # consult reconciled transaction
+    #         if operator == '1': # ORANGE CI  
+    #             all_trx = Trxreconciled.objects.filter(account = '0759062996')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '2' : #DDVA ORANGE 
+    #             all_trx = Trxreconciled.objects.filter(account = '0789248344')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '3': # ONECI ORANGE CI
+    #             all_trx = Trxreconciled.objects.filter(account = '0748884654')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '4': # ORANGE SENEGAL
+    #             all_trx = Trxreconciled.objects.filter(account = '786442199')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '5':  # Orange Cameroun
+    #             all_trx = Trxreconciled.objects.filter(account = '657986833')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '6':  # mtnci
+    #             all_trx = Trxreconciled.objects.filter(account = 'CINETPAY')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '7':   # oneci mtn
+    #             all_trx = Trxreconciled.objects.filter(account = 'ONECI')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'reconciled':consultation}, status=status.HTTP_200_OK)
+    #         else :
+    #             return Response({'operator':'doesn\'t exist'}, status=status.HTTP_404_NOT_FOUND)
             
-        elif choice == '2':   # consult not reconciled transaction
-            if operator == '1': # ORANGE CI  
-                all_trx = TrxNonereconciled.objects.filter(account = '0759062996')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
-            if operator == '2' : #DDVA ORANGE 
-                all_trx = TrxNonereconciled.objects.filter(account = '0789248344')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({' Not reconciled':consultation}, status=status.HTTP_200_OK)
-            if operator == '3': # ONECI ORANGE CI
-                all_trx = TrxNonereconciled.objects.filter(account = '0748884654')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '4': # ORANGE SENEGAL
-                all_trx = TrxNonereconciled.objects.filter(account = '786442199')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({' Not reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '5':  # Orange Cameroun
-                all_trx = TrxNonereconciled.objects.filter(account = '657986833')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '6':  # mtnci
-                all_trx = TrxNonereconciled.objects.filter(account = 'CINETPAY')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
-            elif operator == '7':   # oneci mtn
-                all_trx = TrxNonereconciled.objects.filter(account = 'ONECI')
-                consultation = consult_trx(start_obj,end_obj,all_trx,operator)
-                return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
-            else :
-                return Response({'operator':'doesn\'t exist'},status=status.HTTP_404_NOT_FOUND)
-        else :
-            return Response({'choice':'doesn\'t exist'},status=status.HTTP_404_NOT_FOUND)
+    #     elif choice == '2':   # consult not reconciled transaction
+    #         if operator == '1': # ORANGE CI  
+    #             all_trx = TrxNonereconciled.objects.filter(account = '0759062996')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         if operator == '2' : #DDVA ORANGE 
+    #             all_trx = TrxNonereconciled.objects.filter(account = '0789248344')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({' Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         if operator == '3': # ONECI ORANGE CI
+    #             all_trx = TrxNonereconciled.objects.filter(account = '0748884654')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '4': # ORANGE SENEGAL
+    #             all_trx = TrxNonereconciled.objects.filter(account = '786442199')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({' Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '5':  # Orange Cameroun
+    #             all_trx = TrxNonereconciled.objects.filter(account = '657986833')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '6':  # mtnci
+    #             all_trx = TrxNonereconciled.objects.filter(account = 'CINETPAY')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         elif operator == '7':   # oneci mtn
+    #             all_trx = TrxNonereconciled.objects.filter(account = 'ONECI')
+    #             consultation = consult_trx(start_obj,end_obj,all_trx,operator)
+    #             return Response({'Not reconciled':consultation}, status=status.HTTP_200_OK)
+    #         else :
+    #             return Response({'operator':'doesn\'t exist'},status=status.HTTP_404_NOT_FOUND)
+    #     else :
+    #         return Response({'choice':'doesn\'t exist'},status=status.HTTP_404_NOT_FOUND)
 
     @csrf_exempt
     def post(self, request, *args, **kwargs):
+        token = request.META['HTTP_AUTHORIZATION']
         # backoffice Cinetpay---------------------------
-        # data = json.loads(list(request.POST.keys())[0])
-        # operator = data['operateur']
-        # transaction = data['fichier']
-        # trx = json.loads(transaction)
-        # trx = trx[list(trx.keys())[0]]
-        # debut = data['dateDebut']
-        # fin = data['dateFin']
-        # fileName = data['fileName']
+        data = json.loads(list(request.POST.keys())[0])
+        operator = data['operateur']
+        transaction = data['fichier']
+        trx = json.loads(transaction)
+        trx = trx[list(trx.keys())[0]]
+        debut = data['dateDebut']
+        fin = data['dateFin']
+        fileName = data['fileName']
         # backoffice Cinetpay---------------------------
 
         # my own interface------------------------------
-        operator = request.POST.getlist('operateur')[0]
-        transaction = request.POST['fichier']
-        trx = json.loads(transaction)
-        debut = request.POST['debut']
-        fin = request.POST['fin']
-        fileName = 'fichier essai'
+        # operator = request.POST.getlist('operateur')[0]
+        # transaction = request.POST['fichier']
+        # trx = json.loads(transaction)
+        # debut = request.POST['debut']
+        # fin = request.POST['fin']
+        # fileName = 'fichier essai'
         # my own interface------------------------------
        
 
@@ -317,7 +378,7 @@ class Reconcile(APIView):
                         save_file(data, agent.username, index_, tache)
                         print('je veux rentre')
 
-                        execute_reconcile(item,tache.id)   
+                        execute_reconcile(item,tache.id,token)   
                         # p = Process(target=execute_reconcile, args=(item,tache,))
                         # p.start()
                         print('je suis passe')
@@ -393,7 +454,7 @@ class Reconcile(APIView):
                 # file_treatment_ddva_visa(trx,debut,agent.username,tache)
                 # information = second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache)
 
-                execute_reconcile_ddva(trx,tache.id)
+                execute_reconcile_ddva(trx,tache.id,token)
 
 
 
@@ -543,8 +604,11 @@ class Reconcile(APIView):
 
 
 
-class ReconcileDetail(APIView) :
+class ReconcileUpdate(APIView) :
+    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
     def put(self, request, pk, format=None):
+        
+        Tache.objects.filter(pk=pk).update(etat=ETAT_TACHE[3][0])
         tache = Tache.objects.get(pk=pk)
         rightCorresp = TrxRightCorrespodent.objects.filter(tache = tache)
         NoneCorresp = TrxDifference.objects.filter(tache = tache)
@@ -593,8 +657,14 @@ class ReconcileDetail(APIView) :
                 'countCinetpay':countCinetpay,
                 'diffCount':diffCount 
             }
+        Tache.objects.filter(pk=pk).update(etat=ETAT_TACHE[4][0])
+        Tache.objects.filter(pk=pk).update(montantOperateurAfter=operatorAmount,montantCinetpayAfter=CinetpayAmount,diffMontantAfter=diffAmount,countOperatorAfter=countOperator,countCinetpayAfter=countCinetpay,diffCountAfter=diffCount)
             
-        return Response(information, status=status.HTTP_201_CREATED)
+        return Response({"update":"succes"}, status=status.HTTP_201_CREATED)
+
+
+
+
 
 
 
@@ -676,20 +746,21 @@ class Catered(APIView):
         # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay
         success_trx = all_sucess_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover successfuly transactions from Cinetay
         second_treatment(failed_trx,success_trx,compte,agent,tache)
-        difference = match_table(compte,agent.username) #match operator trx and CinetpaySucessfuly trx and return difference
+        difference = match_table(tache) #match operator trx and CinetpaySucessfuly trx and return difference
         if len(difference) == 0 :
+            Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[4][0])
             Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0])
             information  = third_treatment(agent,compte,tache) 
             return Response(information , status=status.HTTP_200_OK)
-        
-        information = forth_treament(difference,compte,agent,tache)
-        end_time = time.time()
-        print("Started at", datetime.now())
-        Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0]) 
-        notification(agent,tache.pk,information)
-        # notification(request.user)
-        print("Time for reconciling : %ssecs" % (end_time-start_time) )
-        return Response(information, status=status.HTTP_200_OK)
+        else :
+            information = forth_treament(difference,compte,agent,tache)
+            end_time = time.time()
+            print("Started at", datetime.now())
+            Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0]) 
+            notification(agent,tache.pk,information)
+            # notification(request.user)
+            print("Time for reconciling : %ssecs" % (end_time-start_time) )
+            return Response(information, status=status.HTTP_200_OK)
 
         
 
@@ -714,28 +785,32 @@ class Cinetpay(APIView) :
         serializer = TrxRightCorrespodentSerializer(qs, many=True)
         return Response(serializer.data)
     #orangeCi
+    # def post(self, request, *args, **kwargs):
+    #     start_time  =time.time()
+    #     for x in request.data:
+    #         serializer = TrxCinetpaySerializer(data=x)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #         else :
+    #             return Response(serializer.errors)
+    #     end_time = time.time()
+    #     print("Time for reconciling : %ssecs" % (end_time-start_time) )
+    #     return Response({'sucess':'ok'})
+    # ddva orangeCi
     def post(self, request, *args, **kwargs):
-        start_time  =time.time()
+        # send_whatsApp()
         for x in request.data:
+            # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
+            x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
+            x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
             serializer = TrxCinetpaySerializer(data=x)
             if serializer.is_valid():
                 serializer.save()
             else :
                 return Response(serializer.errors)
-        end_time = time.time()
-        print("Time for reconciling : %ssecs" % (end_time-start_time) )
         return Response({'sucess':'ok'})
-    # ddva orangeCi
-    # def post(self, request, *args, **kwargs):
-    #     send_whatsApp()
-    #     # for x in request.data:
-    #     #     # x['cel_phone_num'] = str(x['cel_phone_num']).replace('225','')
-    #     #     x['created_at'] = x['created_at'].replace('27/05/2021 ','2021-05-27')
-    #     #     x['cpm_payment_date'] = x['cpm_payment_date'].replace('27/05/2021 ','2021-05-27')
-    #     #     serializer = TrxCinetpaySerializer(data=x)
-    #     #     if serializer.is_valid():
-    #     #         serializer.save()
-    #     #     else :
-    #     #         return Response(serializer.errors)
-        return Response({'sucess':'ok'})
+        
+
+
+
         

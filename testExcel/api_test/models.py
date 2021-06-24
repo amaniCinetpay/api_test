@@ -48,6 +48,19 @@ class Tache(models.Model):
 
     dateCreation = models.DateTimeField(auto_now_add=True)
     dateUpdate   = models.DateTimeField(auto_now=True)
+    montantOperateur = models.CharField(max_length=100, default=' ')
+    montantCinetpay= models.CharField(max_length=100 , default=' ')
+    diffMontant= models.CharField(max_length=100 , default=' ')
+    countOperator= models.CharField(max_length=100 , default=' ')
+    countCinetpay= models.CharField(max_length=100 , default=' ')
+    diffCount= models.CharField(max_length=100 , default=' ')
+
+    montantOperateurAfter = models.CharField(max_length=100, default=' ')
+    montantCinetpayAfter= models.CharField(max_length=100 , default=' ')
+    diffMontantAfter= models.CharField(max_length=100 , default=' ')
+    countOperatorAfter= models.CharField(max_length=100 , default=' ')
+    countCinetpayAfter= models.CharField(max_length=100 , default=' ')
+    diffCountAfter= models.CharField(max_length=100 , default=' ')
 
     def __str__(self) -> str:
         return self.libelle
