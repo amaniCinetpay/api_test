@@ -189,7 +189,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_HOST_USER = 'kouakounoeamani1@gmail.com'
-EMAIL_HOST_PASSWORD = '2005amani'
+EMAIL_HOST_PASSWORD = '@m@ni2005'
 EMAIL_PORT = 587
 
 
@@ -209,7 +209,7 @@ BACKGROUND_TASK_RUN_ASYNC = True
 CORS_ORIGIN_ALLOW_ALL = True # If this is used then `CORS_ORIGIN_WHITELIST` will not have any effect
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:4200',
+    'http://192.168.1.183:4200',
 ] # If this is used, then not need to use `CORS_ORIGIN_ALLOW_ALL = True`
 # CORS_ORIGIN_REGEX_WHITELIST = [
 #     'http://localhost:3030',

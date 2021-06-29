@@ -16,6 +16,7 @@ from asgiref.sync import sync_to_async
 from background_task import background
 from .constantes import *
 import string
+import datetime
 # from celery.decorators import task
 
 
@@ -317,8 +318,30 @@ def file_treatment_oneci_moov(file,agent):
         serializer = TrxOperateurSerializer(data=x)
         insert_oneci_moov_trx(x,agent)
 
-def file_treatment_ddva_visa(file,debut,agent,tache) :
+
+
+def min_date(x,y):  
+    if x > y :
+        x = y
+    else :
+        x=x
+    return x
+
+
+def max_date(x,y):  
+    if x < y :
+        x = y
+    else :
+        x=x
+    return x
+
+
+
+def file_treatment_ddva_visa(file,agent,tache,max_dat,min_dat) :
+    count = 0
     for x in file :
+        count += 1
+        print(count)
         b = x['Date et heure'].split(' ')[0]
         h=x['Date et heure'].split(' ')[1]
         print(b,h,"-------------------------------------")
@@ -327,11 +350,23 @@ def file_treatment_ddva_visa(file,debut,agent,tache) :
         
         
         date_time_str = x['Date et heure']
-        date_time_obj = datetime. strptime(str(date_time_str), '%Y-%m-%d %H:%M:%S')
+        date_time_obj = datetime.datetime.strptime(str(date_time_str), '%Y-%m-%d %H:%M:%S')
         x['Date et heure'] = date_time_obj
-        print(x['Date et heure'],type(x['Date et heure']),type(debut),'++++++++++++++++++++++++++++')
+       
         serializer = TrxOperateurSerializer(data=x)
+
+      
+
+        min_dat = min_date(min_dat,x['Date et heure'])
+        max_dat = max_date(max_dat,x['Date et heure'])
+        # print([min_dat,max_dat],"avant sddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
+        
         insert_ddva_visa_trx(x,agent,tache)
+    return [min_dat,max_dat]
+
+
+
+
 
 
 #transaction from operator and not from Cinetpay------------------------------------------------------------------------------
@@ -404,6 +439,7 @@ def insert_oneci_moov_trx(x,agent):
 def insert_ddva_visa_trx(x,agent,tache):
     b =TrxDdvaVisa(payment_date=x['Date et heure'] , payid=x['ID de requête'],status=x['Décision'],trans_id=x['UUID de la transaction'],amount=x['Montant'],account=x['ID du marchand'],agent = agent,tache=tache)
     b.save()
+    print("\n",b.__dict__, "\n")
     print('sauvé---------------------')
 #------------------------------------------------------------------------------------------------------------------------------
 
@@ -495,18 +531,9 @@ def send_email(user,tache,information):
     fileName = tache.fileName
     fin_obj = tache.dateFin
     compte = tache.operateur.account
-    ms= {
-        "Nom du fichier":fileName,
-        "operateur":compte,
-        "Nombre transacions Cinetpay":information['countCinetpay'],
-        "Nombre transacions Operateur":information['countOperator'],
-        "difference transaction":information['diffCount'],
-        "Montant Cinetpay":information['montantCinetpay'],
-        "Montant Operateur":information['montantOperateur'],
-        "Difference Montant":information['diffMontant']
-    }
-    body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
-    print(body)
+
+    body = "Consultez les resultats "+ "\n\n"+ "Nom du fichier : " + str(fileName) + "\n" +  "operateur : " +str(compte) + "\n" + "Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
+   
     email = EmailMessage('Reconciliation terminée',body,'kouakounoeamani1@gmail.com',  to=[user.email])
     print(user.email)
     email.send()
@@ -537,18 +564,9 @@ def send_whatsApp(tache,information) :
     fin_obj = tache.dateFin
     fileName = tache.fileName
     compte = tache.operateur.account
-    ms= {
-        "Nom du fichier":fileName,
-        "operateur":compte,
-        "Nombre transacions Cinetpay":information['countCinetpay'],
-        "Nombre transacions Operateur":information['countOperator'],
-        "difference transaction":information['diffCount'],
-        "Montant Cinetpay":information['montantCinetpay'],
-        "Montant Operateur":information['montantOperateur'],
-        "Difference Montant":information['diffMontant']
-    }
-    body = "Consultez les resultats : " + json.dumps(ms) + "\n\n" +  "Veillez valider sur la plateforme de reconciliation"
-    print(body)
+
+    body = "Consultez les resultats "+ "\n\n"+ "Nom du fichier : " + str(fileName) + "\n" +  "operateur : " +str(compte) + "\n" + "Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
+
     r=requests.post('https://h1kjiyvucg.execute-api.eu-west-2.amazonaws.com/prod/common-core-whatsapp/send-message', 
         json={
           "numero" :"22542662716", 
@@ -556,7 +574,7 @@ def send_whatsApp(tache,information) :
           "message" : body
         },
     )
-    print('whatsApp',dddd)
+    print('whatsApp')
 
 
 
@@ -578,11 +596,83 @@ def notification(user,tache,information):
 
 
 
-def save_file(file, agent, index_, tache) :
-    for x in file :
-        serializer = TrxOperateurSerializer(data=x)
-        insert_operator(x,agent, index_, tache)
-        print("sauvé")
+def save_file(file, agent, index_, tache,min_dat,max_dat,compte) :
+        
+    if compte == "237681635363" or compte=="0899539928" or compte=="657986833" :   
+        for x in file :
+                
+            try :
+                try :
+                    x[index_["index_date"]] = x[index_["index_date"]].split('.')[0]
+                except Exception as e :
+                    print(e)
+                    pass
+                x[index_["index_date"]] = datetime.datetime.strptime(x[index_["index_date"]],"%Y-%m-%d %H:%M:%S")
+                hours = 1
+                hours_substracted = datetime.timedelta(hours=hours)
+                x[index_["index_date"]] = x[index_["index_date"]] - hours_substracted
+                print(x[index_["index_date"]],"ddddddddddddddddddddssssssssssssssssssssssssssssssssssss")
+            except Exception as e :
+                print(e)
+                try :
+                    x[index_["index_datetime"]] = x[index_["index_datetime"]].split('.')[0]
+                except Exception as e :
+                    print(e)
+                    pass
+
+                x[index_["index_datetime"]] = datetime.datetime.strptime(x[index_["index_datetime"]],"%Y-%m-%d %H:%M:%S")
+
+                hours = 1
+                hours_substracted = datetime.timedelta(hours=hours)
+                x[index_["index_datetime"]] = x[index_["index_datetime"]] - hours_substracted
+                print(x[index_["index_datetime"]],"ddddddddddddddddddddssssssssssssssssssssssssssssssssssss")
+
+                serializer = TrxOperateurSerializer(data=x)
+                insert_operator(x,agent, index_, tache)
+
+            try :     
+
+                min_dat = min_date(min_dat,x[index_["index_date"]])
+                max_dat = max_date(max_dat,x[index_["index_date"]])
+            
+            except KeyError as e :
+                print(e)
+                min_dat = min_date(min_dat,x[index_["index_datetime"]])
+                max_dat = max_date(max_dat,x[index_["index_datetime"]])
+            print("sauvé")
+            serializer = TrxOperateurSerializer(data=x)
+            insert_operator(x,agent, index_, tache)
+        return [min_dat,max_dat]
+
+    else :
+
+        for x in file :
+            serializer = TrxOperateurSerializer(data=x)
+            insert_operator(x,agent, index_, tache)
+
+            try :
+                try :    
+                    x[index_["index_date"]] = x[index_["index_date"]].split('.')[0]
+                except Exception as e :
+                    print(e)
+                    pass
+                x[index_["index_date"]] = datetime.datetime.strptime(x[index_["index_date"]],"%Y-%m-%d %H:%M:%S")
+
+                min_dat = min_date(min_dat,x[index_["index_date"]])
+                max_dat = max_date(max_dat,x[index_["index_date"]])
+            
+            except KeyError as e :
+                print(e)
+                try :
+                    x[index_["index_datetime"]] = x[index_["index_datetime"]].split('.')[0]
+                except Exception as e :
+                    print(e)
+                    pass
+                x[index_["index_datetime"]] = datetime.datetime.strptime(x[index_["index_datetime"]],"%Y-%m-%d %H:%M:%S")
+                min_dat = min_date(min_dat,x[index_["index_datetime"]])
+                max_dat = max_date(max_dat,x[index_["index_datetime"]])
+            print("sauvé")
+        return [min_dat,max_dat]
 
 
 def start_treatment(item,a) :
@@ -618,13 +708,25 @@ def third_treatment(agent,compte,tache) :
     CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username,tache= tache)
     operatorAmount = 0
     for t in operatorA :
-        if t.amount != '-' :
+        try :
             operatorAmount += int(t.amount.split('.')[0])
+        except ValueError as e :
+            print(e)
+           
+            try : 
+                operatorAmount += int(t.amount.replace(',',''))
+            except ValueError as r :
+                print(r)
+                
+                pass
     print(operatorAmount,'equal',countOperator)
     CinetpayAmount = 0
     for t in CinetpayA :
-        if t.cpm_amount != '-' :
+        try :
             CinetpayAmount += int(t.cpm_amount)
+        except ValueError as e :
+            print(e)
+            pass
     print(CinetpayAmount,'equal',countCinetpay)
     diffAmount = operatorAmount - CinetpayAmount
     # TrxOperateur.objects.filter(account= compte,agent=agent,tache= tache ).delete()
@@ -667,13 +769,24 @@ def forth_treament(difference,compte,agent,tache):
     CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent.username, tache = tache)
     operatorAmount = 0
     for t in operatorA :
-        if t.amount != '-' :
+        try :
             operatorAmount += int(t.amount.split('.')[0])
+        except ValueError as e :
+            print(e)
+            print(t.amount)
+            try : 
+                operatorAmount += int(t.amount.replace(',',''))
+            except ValueError as r :
+                print(r)      
+                pass
     print(operatorAmount)
     CinetpayAmount = 0
     for t in CinetpayA :
-        if t.cpm_amount != '-' :
+        try :
             CinetpayAmount += int(t.cpm_amount)
+        except ValueError as e :
+            print(e)
+            pass
     print(CinetpayAmount)
     diffAmount = operatorAmount - CinetpayAmount
     # b = TrxCorrespondentSerializer(qs, many=True)
@@ -739,14 +852,14 @@ def execute_reconcile_ddva(trx,tache,token):
 
 
 
-def start_treatment_ddva(operator,debut_obj,request,trx,fin_obj,fileName):
+def start_treatment_ddva(operator,request,trx,fileName):
     operateur = Operateur.objects.get(code=operator) 
-    date = datetime.now()
+    date = datetime.datetime.now()
     tache = Tache.objects.create(
         libelle='tache #{}'.format(date), 
         description='', 
-        dateDebut=debut_obj, 
-        dateFin=fin_obj,
+        dateDebut=date, 
+        dateFin=date,
         owner=request.user, 
         operateur=operateur,
         fileName = fileName
@@ -780,23 +893,33 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
         CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent,tache=tache)
         operatorAmount = 0
         for t in operatorA :
-            if t.amount != '-' :
+            try:
                 t.amount = t.amount.translate({ord(c): None for c in string.whitespace})
                 print(t.amount)
                 operatorAmount += int(t.amount)
+            except ValueError as e :
+                print(e)
+                try : 
+                    operatorAmount += int(t.amount.replace(',',''))
+                except ValueError as r :
+                    print(r)
+                    pass
         print(operatorAmount)
         CinetpayAmount = 0
         for t in CinetpayA :
-            if t.cpm_amount != '-' :
+            try:
                 CinetpayAmount += int(t.cpm_amount)
+            except ValueError as e :
+                print(e)
+                pass
         print(CinetpayAmount)
         diffAmount = operatorAmount - CinetpayAmount
-        TrxDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache ).delete()
-        TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
-        TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
-        TrxDifferenceDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
-        TrxCorrespondent.objects.filter(account= compte,agent=agent,tache=tache).delete()
-        TrxRightCorrespodentDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        # TrxDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache ).delete()
+        # TrxSuccessCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        # TrxFailedCinetpay.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        # TrxDifferenceDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        # TrxCorrespondent.objects.filter(account= compte,agent=agent,tache=tache).delete()
+        # TrxRightCorrespodentDdvaVisa.objects.filter(account= compte,agent=agent,tache=tache).delete()
         print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())
         information = {
             'difference': 0,
@@ -819,7 +942,7 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
         # Detect each correspondent of trx in difference
         detect_correspondent_ddva_visa(compte,agent.username,tache)
         end_time = time.time()
-        print("Time for reconciling : %ssecs" % (end_time-start_time) )
+        # print("Time for reconciling : %ssecs" % (end_time-start_time) )
         # operatorAmount = TrxOperateur.objects.aggregate(Sum('amount'))
         # CinetpayAmount = TrxSuccessCinetpay.objects.aggregate(Sum('amount'))
         # print(CinetpayAmount,operatorAmount)
@@ -834,14 +957,24 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
         CinetpayA = TrxSuccessCinetpay.objects.filter(account= compte, agent=agent)
         operatorAmount = 0
         for t in operatorA :
-            if t.amount != '-' :
+            try:
                 t.amount = t.amount.translate({ord(c): None for c in string.whitespace})
                 operatorAmount += int(t.amount)
+            except ValueError as e :
+                print(e)
+                try : 
+                    operatorAmount += int(t.amount.replace(',',''))
+                except ValueError as r :
+                    print(r)
+                    pass
         print(operatorAmount)
         CinetpayAmount = 0
         for t in CinetpayA :
-            if t.cpm_amount != '-' :
+            try :
                 CinetpayAmount += int(t.cpm_amount)
+            except ValueError as e :
+                print(e)
+                pass
         print(CinetpayAmount)
         # TrxCinetpay.objects.filter(payment_method='DDVAVISAM').delete()
         # print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())

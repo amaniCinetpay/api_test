@@ -40,8 +40,8 @@ class Tache(models.Model):
     fileName = models.CharField(max_length=100)
     libelle     = models.CharField(max_length=50)
     description = models.CharField(max_length=512)
-    dateDebut   = models.DateTimeField(verbose_name='Date de début')
-    dateFin     = models.DateTimeField(verbose_name='Date de fin')
+    dateDebut   = models.DateTimeField(verbose_name='Date de début',default='')
+    dateFin     = models.DateTimeField(verbose_name='Date de fin',default='')
     owner       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     operateur   = models.ForeignKey(Operateur, on_delete=models.SET_NULL, null=True, blank=True)
     etat        = models.CharField(choices=ETAT_TACHE, max_length=50, default='CREATION')
@@ -61,6 +61,9 @@ class Tache(models.Model):
     countOperatorAfter= models.CharField(max_length=100 , default=' ')
     countCinetpayAfter= models.CharField(max_length=100 , default=' ')
     diffCountAfter= models.CharField(max_length=100 , default=' ')
+    TrxReconciled= models.CharField(max_length=100 , default=0)
+    TrxNonereconciled= models.CharField(max_length=100 , default=0)
+
 
     def __str__(self) -> str:
         return self.libelle

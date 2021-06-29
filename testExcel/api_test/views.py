@@ -29,6 +29,7 @@ from copy import deepcopy
 from multiprocessing import Process
 from api_test import models
 from oauth2_provider.models import AccessToken
+import datetime
 
 # Create your views here.
 
@@ -149,7 +150,20 @@ class TacheView(generics.ListCreateAPIView):
     #queryset = Tache.objects.filter(owner=request.user)
     def get_queryset(self):
         user = self.request.user
-        return  Tache.objects.filter(owner=user)
+        
+        kwargs = {}
+        if 'opateur__pk' in self.request.GET :
+            if self.request.GET['opateur__pk'] != None :
+                kwargs["operateur__code"] = self.request.GET['opateur__pk']
+        if 'dateDebut' in self.request.GET and self.request.GET['dateDebut'] != None :
+            kwargs["dateDebut__gt"] = self.request.GET['dateDebut']
+        if 'dateFin' in self.request.GET and self.request.GET['dateFin'] != None :
+            kwargs["dateFin__lt"] = self.request.GET['dateFin']
+        if 'etat' in self.request.GET and self.request.GET['etat']  != None :
+            kwargs["etat"] = self.request.GET['etat']
+        if 'fileName__icontains' in self.request.GET and self.request.GET['fileName__icontains']  != None :
+            kwargs["fileName__icontains"] = self.request.GET['fileName__icontains']
+        return  Tache.objects.filter(owner=user, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -273,17 +287,21 @@ class Reconcile(APIView):
         transaction = data['fichier']
         trx = json.loads(transaction)
         trx = trx[list(trx.keys())[0]]
+       
         debut = data['dateDebut']
         fin = data['dateFin']
         fileName = data['fileName']
+    
         # backoffice Cinetpay---------------------------
 
         # my own interface------------------------------
+        # token="Bearer fdkkkkkkkklllmdsgfndkggfgf"
         # operator = request.POST.getlist('operateur')[0]
         # transaction = request.POST['fichier']
         # trx = json.loads(transaction)
-        # debut = request.POST['debut']
-        # fin = request.POST['fin']
+    
+        # # debut = request.POST['debut']
+        # # fin = request.POST['fin']
         # fileName = 'fichier essai'
         # my own interface------------------------------
        
@@ -291,8 +309,8 @@ class Reconcile(APIView):
         # operator = request.data['operateur']
         # debut = request.data['debut']
         # fin = request.data['fin']
-        debut_obj = datetime.strptime(debut, "%Y-%m-%dT%H:%M")
-        fin_obj = datetime.strptime(fin, "%Y-%m-%dT%H:%M")
+        # debut_obj = datetime.strptime(debut, "%Y-%m-%dT%H:%M")
+        # fin_obj = datetime.strptime(fin, "%Y-%m-%dT%H:%M")
 
         compte = '0000000000'
         # agent = request.data['agent']
@@ -301,12 +319,13 @@ class Reconcile(APIView):
 
         print(operator)
 
-
+       
         
         for config in CONFIG : #CONFIG comes from config
             if operator in config["operators"] : # all orange payment except OMBF
                 CONFIG_OPERATOR = config["config"]
                 INDEXES = config["index"]
+
                 
                 # required_state = verify_type_from_config(config)
                 # try :
@@ -323,7 +342,7 @@ class Reconcile(APIView):
 
                 if len(state) == 0 :
                     # Créer les variables
-                    date = datetime.now()
+                    date = datetime.datetime.now()
 
                     operateur = Operateur.objects.get(code=operator) 
 
@@ -365,18 +384,45 @@ class Reconcile(APIView):
 
                     found = False
                     item = CONFIG_OPERATOR[operator]
-                    if str(item["account"]) == compte :    
+                    print(item["account"],compte,"ddddddddddddddddddddddddddddddddddddd")
+                    if str(item["account"]) == str(compte) :
+                          
                         tache = Tache.objects.create(
                             libelle='tache #{}'.format(date), 
                             description='', 
-                            dateDebut=debut_obj, 
-                            dateFin=fin_obj,
+                            dateDebut= format(date), 
+                            dateFin=format(date),
                             owner=request.user, 
                             operateur=operateur,
                             fileName= fileName
                             )
-                        save_file(data, agent.username, index_, tache)
+                        
+                        
+                            
+
+                        default_date = "2050-05-04 23:00:00"
+                        min_dat = datetime.datetime.strptime(default_date, '%Y-%m-%d %H:%M:%S')
+
+                        default_dat = "1990-05-04 23:59:00"
+                        max_dat = datetime.datetime.strptime(default_dat, '%Y-%m-%d %H:%M:%S')
+
+                        date_table=save_file(data, agent.username, index_, tache,min_dat,max_dat,compte)
                         print('je veux rentre')
+                       
+                        
+                        debut = date_table[0]
+                        fin = date_table[1]
+                        # debut = str(debut).split(' ')[0]+' 00:00'
+                        # fin = str(fin).split(' ')[0]+' 23:59'
+                        
+                        minu = 1
+                        minu_subtracted = datetime.timedelta(minutes=minu)
+                        debut_obj = datetime.datetime.strptime(str(debut), '%Y-%m-%d %H:%M:%S')
+                        debut_obj = debut_obj - minu_subtracted
+                        fin_obj = datetime.datetime.strptime(str(fin), '%Y-%m-%d %H:%M:%S')
+                        
+                        Tache.objects.filter(pk=tache.id).update(dateDebut=debut_obj,dateFin=fin_obj)
+
 
                         execute_reconcile(item,tache.id,token)   
                         # p = Process(target=execute_reconcile, args=(item,tache,))
@@ -411,8 +457,7 @@ class Reconcile(APIView):
                         # failed_trx = Cinetpay_transaction_failed(debut_obj,fin_obj,all_failed_trx)  # recover failed transactions from Cinetay
                         # success_trx = Cinetpay_transaction_success(debut_obj, fin_obj,all_sucess_trx)  # recover successfuly transactions from Cinetay
                     
-                    if found == False :  
-                        TrxOperateur.objects.filter().delete() 
+                    if found == False :   
                         return Response({'operator':'invalid'}, status=status.HTTP_406_NOT_ACCEPTABLE)
                     # second_treatment(failed_trx,success_trx,compte,agent,tache)
                     # difference = match_table(compte,agent) #match operator trx and CinetpaySucessfuly trx and return difference
@@ -445,7 +490,7 @@ class Reconcile(APIView):
             state = verify_ddva_visa(trx)
     
             if len(state) == 0 : 
-                tache =start_treatment_ddva(operator,debut_obj,request,trx,fin_obj,fileName)
+                tache =start_treatment_ddva(operator,request,trx,fileName)
                 start_time  =time.time()
 
 
@@ -453,7 +498,7 @@ class Reconcile(APIView):
                 #treat and insert trx from operator
                 # file_treatment_ddva_visa(trx,debut,agent.username,tache)
                 # information = second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache)
-
+              
                 execute_reconcile_ddva(trx,tache.id,token)
 
 
@@ -639,11 +684,22 @@ class ReconcileUpdate(APIView) :
         for t in operatorA :
             dt = TrxCinetpay.objects.filter(cpm_payid=t.payid)
             for s in dt :
-                if s.cpm_amount != '-' :
+                try :
                     CinetpayAmount += int(s.cpm_amount)
+                except ValueError as e :
+                    print(e)
+                    pass
             countCinetpay += 1
-            if t.amount != '-' :
+            try:
                 operatorAmount += int(t.amount.split('.')[0])
+            except ValueError as e :
+                print(e)
+                try : 
+                    operatorAmount += int(t.amount.replace(',',''))
+                except ValueError as r :
+                    print(r)
+                    pass
+                
         diffCount = countOperator - countCinetpay
         print(operatorAmount,'equal',countOperator)   
 
@@ -677,14 +733,30 @@ class CateredDdva(APIView):
         trx =request.data['trx']
         id_tache =request.data['id_tache']
         tache = Tache.objects.get(pk=id_tache)
-        debut_obj =tache.dateDebut
-        fin_obj = tache.dateFin
+        # debut_obj =tache.dateDebut
+        # fin_obj = tache.dateFin
         compte = tache.operateur.account
         agent = tache.owner
         Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[1][0])
 
 
-        file_treatment_ddva_visa(trx,debut_obj,agent.username,tache)
+        default_date = "2050-05-04 23:00:00"
+        min_dat = datetime.datetime.strptime(default_date, '%Y-%m-%d %H:%M:%S')
+
+        default_dat = "1990-05-04 23:59:00"
+        max_dat = datetime.datetime.strptime(default_dat, '%Y-%m-%d %H:%M:%S')
+
+        date_table=file_treatment_ddva_visa(trx,agent.username,tache,max_dat,min_dat)
+
+        debut = date_table[0]
+        fin = date_table[1]
+        debut = str(debut).split(' ')[0]+' 00:00'
+        fin = str(fin).split(' ')[0]+' 23:59'
+
+        debut_obj = datetime.datetime.strptime(str(debut), '%Y-%m-%d %H:%M')
+        fin_obj = datetime.datetime.strptime(str(fin), '%Y-%m-%d %H:%M')
+
+        Tache.objects.filter(pk=id_tache).update(dateDebut=debut_obj,dateFin=fin_obj)
         information = second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache)
         Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0])
         notification(agent,tache.pk,information)
@@ -747,6 +819,7 @@ class Catered(APIView):
         success_trx = all_sucess_trx.filter(created_at__gt = debut_obj).filter(created_at__lt = fin_obj)  # recover successfuly transactions from Cinetay
         second_treatment(failed_trx,success_trx,compte,agent,tache)
         difference = match_table(tache) #match operator trx and CinetpaySucessfuly trx and return difference
+
         if len(difference) == 0 :
             Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[4][0])
             Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0])
@@ -755,7 +828,7 @@ class Catered(APIView):
         else :
             information = forth_treament(difference,compte,agent,tache)
             end_time = time.time()
-            print("Started at", datetime.now())
+  
             Tache.objects.filter(pk=id_tache).update(etat=ETAT_TACHE[2][0]) 
             notification(agent,tache.pk,information)
             # notification(request.user)
@@ -763,8 +836,6 @@ class Catered(APIView):
             return Response(information, status=status.HTTP_200_OK)
 
         
-
-
 
 
 

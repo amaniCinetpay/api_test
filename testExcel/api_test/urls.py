@@ -20,6 +20,7 @@ urlpatterns = [
     path('taches/', TacheView.as_view(), name='tlc'),
     path('taches/<int:pk>/', TacheRUD.as_view(), name='trud'),
     path('catered_ddva/', CateredDdva.as_view(), name='catered_ddva'),
+    
 ]
 
 
