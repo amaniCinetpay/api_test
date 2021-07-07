@@ -16,12 +16,23 @@ class Post(models.Model):
     def  __str__(self):
         return self.title
 
+
+   
+class Role(models.Model):
+    libelle         = models.CharField(max_length=100)  
+    parent = models.ForeignKey('self', related_name="children", on_delete=models.SET_NULL, null=True,blank=True)
+
+    def __str__(self):
+        return self.libelle
+
 class Profile(models.Model) :
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     telephone = models.CharField(max_length=100)
     numero_whatsapp = models.CharField(max_length=100)
     fonction = models.CharField(max_length=100)
     matricule = models.CharField(max_length=100)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL,null=True,blank=True)
+
 
 
 class Operateur(models.Model):
@@ -40,33 +51,40 @@ class Tache(models.Model):
     fileName = models.CharField(max_length=100)
     libelle     = models.CharField(max_length=50)
     description = models.CharField(max_length=512)
-    dateDebut   = models.DateTimeField(verbose_name='Date de début',default='')
-    dateFin     = models.DateTimeField(verbose_name='Date de fin',default='')
+    dateDebut   = models.DateTimeField(verbose_name='Date de début',null=True)
+    dateFin     = models.DateTimeField(verbose_name='Date de fin', null=True )
     owner       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     operateur   = models.ForeignKey(Operateur, on_delete=models.SET_NULL, null=True, blank=True)
     etat        = models.CharField(choices=ETAT_TACHE, max_length=50, default='CREATION')
 
     dateCreation = models.DateTimeField(auto_now_add=True)
+    dateFinCollect   = models.DateTimeField(null=True,blank=True)
     dateUpdate   = models.DateTimeField(auto_now=True)
-    montantOperateur = models.CharField(max_length=100, default=' ')
-    montantCinetpay= models.CharField(max_length=100 , default=' ')
-    diffMontant= models.CharField(max_length=100 , default=' ')
-    countOperator= models.CharField(max_length=100 , default=' ')
-    countCinetpay= models.CharField(max_length=100 , default=' ')
-    diffCount= models.CharField(max_length=100 , default=' ')
+    # dateFin   = models.DateTimeField(null=True,blank=True)
 
-    montantOperateurAfter = models.CharField(max_length=100, default=' ')
-    montantCinetpayAfter= models.CharField(max_length=100 , default=' ')
-    diffMontantAfter= models.CharField(max_length=100 , default=' ')
-    countOperatorAfter= models.CharField(max_length=100 , default=' ')
-    countCinetpayAfter= models.CharField(max_length=100 , default=' ')
-    diffCountAfter= models.CharField(max_length=100 , default=' ')
+    dateValidation   = models.DateTimeField(null=True,blank=True)
+    dateFinValidation  = models.DateTimeField(null=True,blank=True)
+
+
+    montantOperateur = models.CharField(max_length=100,null=True,blank=True)
+    montantCinetpay= models.CharField(max_length=100 ,null=True,blank=True)
+    diffMontant= models.CharField(max_length=100 ,null=True,blank=True)
+    countOperator= models.CharField(max_length=100 ,null=True,blank=True)
+    countCinetpay= models.CharField(max_length=100 ,null=True,blank=True)
+    diffCount= models.CharField(max_length=100 ,null=True,blank=True)
+
+    montantOperateurAfter = models.CharField(max_length=100,null=True,blank=True)
+    montantCinetpayAfter= models.CharField(max_length=100 ,null=True,blank=True)
+    diffMontantAfter= models.CharField(max_length=100 ,null=True,blank=True)
+    countOperatorAfter= models.CharField(max_length=100 ,null=True,blank=True)
+    countCinetpayAfter= models.CharField(max_length=100 ,null=True,blank=True)
+    diffCountAfter= models.CharField(max_length=100 ,null=True,blank=True)
     TrxReconciled= models.CharField(max_length=100 , default=0)
     TrxNonereconciled= models.CharField(max_length=100 , default=0)
 
 
     def __str__(self) -> str:
-        return self.libelle
+        return self.fileName
 
     class Meta:
         ordering = ['-dateCreation']

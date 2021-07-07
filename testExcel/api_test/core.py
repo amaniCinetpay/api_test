@@ -530,9 +530,9 @@ def send_email(user,tache,information):
     debut_obj =tache.dateDebut
     fileName = tache.fileName
     fin_obj = tache.dateFin
-    compte = tache.operateur.account
+    compte = tache.operateur.code
 
-    body = "Consultez les resultats "+ "\n\n"+ "Nom du fichier : " + str(fileName) + "\n" +  "operateur : " +str(compte) + "\n" + "Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
+    body = "Consultez les resultats "+ "\n\n"+ "->Nom du fichier : " + str(fileName) + "\n" +  "->operateur : " +str(compte) + "\n" + "->Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "->Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "->difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "->Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "->Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "->Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "->Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
    
     email = EmailMessage('Reconciliation terminée',body,'kouakounoeamani1@gmail.com',  to=[user.email])
     print(user.email)
@@ -563,9 +563,9 @@ def send_whatsApp(tache,information) :
     debut_obj =tache.dateDebut
     fin_obj = tache.dateFin
     fileName = tache.fileName
-    compte = tache.operateur.account
+    compte = tache.operateur.code
 
-    body = "Consultez les resultats "+ "\n\n"+ "Nom du fichier : " + str(fileName) + "\n" +  "operateur : " +str(compte) + "\n" + "Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
+    body = "Consultez les resultats "+ "\n\n"+ "->Nom du fichier : " + str(fileName) + "\n" +  "->operateur : " +str(compte) + "\n" + "->Nombre de transacions succès chez Cinetpay : " + str(information['countCinetpay']) + "\n" + "->Nombre de transactions succès chez l'operateur : " +str(information['countOperator']) + "\n" + "->difference de transactions (operateur - Cinetpay) : " +str(information['diffCount']) + "\n" + "->Montant total de transactions chez Cinetpay: " + str(information['montantCinetpay']) + "\n" + "->Montant total de transactions chez l'operateur : " +str(information['montantOperateur']) + "\n" + "->Difference de Montant (opérateur - Cinetpay) : " + str(information['diffMontant']) + "\n" + "->Cette réconciliation s'est effectuée sur la période du : " + str(debut_obj) + " au "+ " " +str(fin_obj) + "\n\n" + "Veuillez valider sur la plateforme de reconciliation"
 
     r=requests.post('https://h1kjiyvucg.execute-api.eu-west-2.amazonaws.com/prod/common-core-whatsapp/send-message', 
         json={
@@ -736,7 +736,7 @@ def third_treatment(agent,compte,tache) :
     # TrxCorrespondent.objects.filter(account= compte,agent=agent,tache= tache).delete()
     # TrxRightCorrespodent.objects.filter(account= compte,agent=agent,tache= tache).delete()
     
-    
+    Tache.objects.filter(pk=tache.id).update(dateFinCollect=format(datetime.datetime.now())) 
     Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
     information = {
         'difference': 0,
@@ -747,7 +747,7 @@ def third_treatment(agent,compte,tache) :
         'countCinetpay':countCinetpay,
         'diffCount':diffCount 
     }
-    Tache.objects.filter(pk=tache.id    ).update(etat=ETAT_TACHE[2][0]) 
+    Tache.objects.filter(pk=tache.id).update(etat=ETAT_TACHE[2][0]) 
     notification(agent,tache.pk,information)
     print(json.dumps(information))
     return information
@@ -794,7 +794,7 @@ def forth_treament(difference,compte,agent,tache):
     qs = TrxRightCorrespodent.objects.filter(agent=agent.username,account = compte, tache = tache)
     serializer = TrxRightCorrespodentSerializer(qs, many=True)
  
-    
+    Tache.objects.filter(pk=tache.id).update(dateFinCollect=format(datetime.datetime.now()))
     information = {
         'With correspondent': serializer.data, 
         'Not correspondent':diffSerialiser.data,
@@ -930,6 +930,7 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
             'countCinetpay':countCinetpay,
             'diffCount':diffCount 
         }
+        Tache.objects.filter(pk=tache.id).update(dateFinCollect=format(datetime.datetime.now()))
         Tache.objects.filter(pk=tache.id).update(montantOperateur=operatorAmount,montantCinetpay=CinetpayAmount,diffMontant=diffAmount,countOperator=countOperator,countCinetpay=countCinetpay,diffCount=diffCount)
         # notification(request.user,tache.id)
         print(tache.id)
@@ -980,7 +981,7 @@ def second_treatment_ddva(trx,debut_obj,fin_obj,agent,tache):
         # print(TrxCinetpay.objects.filter(payment_method='DDVAVISAM').count())
         diffAmount = operatorAmount - CinetpayAmount
         # b = TrxCorrespondentSerializer(qs, many=True)
-        
+        Tache.objects.filter(pk=tache.id).update(dateFinCollect=format(datetime.datetime.now()))
         qs = TrxRightCorrespodentDdvaVisa.objects.filter(agent=agent,account = compte)
         serializer = TrxRightCorrespodentDdvaVisaSerializer(qs, many=True)
         information = {

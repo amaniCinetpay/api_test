@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from api_test.views import OperateurRUD,ReconcileUpdate,TrxRightCorrespodentb,TrxRightCorrespodentRUDView,TrxDifferenceRUDView,TrxDifferenceView, OperateurView,ProfileView,ProfileRUD, TacheRUD, TacheView,TokenView, Test_view,Reconcile,Cinetpay
+from api_test.views import OperateurRUD,ReconcileUpdate,UpdateProfile,TrxRightCorrespodentb,TrxRightCorrespodentRUDView,TrxDifferenceRUDView,TrxDifferenceView, OperateurView,ProfileView,ProfileRUD, TacheRUD, TacheView,TokenView, Test_view,Reconcile,Cinetpay
 from api_test import views
 from rest_framework.authtoken.views import obtain_auth_token 
 from rest_framework.routers import DefaultRouter
@@ -38,6 +38,7 @@ urlpatterns = [
     path('operateurs/<int:pk>/', OperateurRUD.as_view(), name='orud'),
     path('profiles/', ProfileView.as_view(), name='plc'),
     path('profiles/<int:pk>/', ProfileRUD.as_view(), name='prud'),
+    path('update_profile/', UpdateProfile.as_view(), name='updp'),
     path('taches/', TacheView.as_view(), name='tlc'),
     path('taches/<int:pk>/', TacheRUD.as_view(), name='trud'),
     path('<int:tache_id>/trxdifferences/', TrxDifferenceView.as_view(), name='trxdifferences'),
