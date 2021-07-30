@@ -66,7 +66,9 @@ class TokenView(APIView):
         serializer = ProfileSerializer(qs, many=True)
         print(serializer.data[0]['id'])
         role = Role.objects.get(pk=serializer.data[0]['role'])
-        details = {
+        try :
+
+            details = {
             'nom':nom,
             'prenom':prenom,
             'email':email,
@@ -79,6 +81,21 @@ class TokenView(APIView):
            
         }
         
+        except AttributeError :
+            
+            details = {
+            'nom':nom,
+            'prenom':prenom,
+            'email':email,
+            'usename':username,
+            'role': {
+                'id': serializer.data[0]['id'],
+                'libelle':role.libelle,
+                'parent':None
+            }
+           
+        }
+
     
         return Response({'profile':serializer.data,'details':details})
 
